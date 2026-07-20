@@ -1,0 +1,117 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import type { Frete } from "@/lib/store";
+import { getFretes, deleteFrete } from "@/lib/store";
+import { regioes } from "@/lib/config";
+
+interface ListaFretesProps {
+  refreshKey: number;
+  onOpenDetail: (id: string) => void;
+  onDeleted: () => void;
+}
+
+export default function ListaFretes({ refreshKey, onOpenDetail, onDeleted }: ListaFretesProps) {
+  const [fretes, setFretes] = useState<Frete[]>([]);
+  const [filtro, setFiltro] = useState("");
+  const [filtroRegiao, setFiltroRegiao] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("");
+
+  useEffect(() => {
+    setFretes(getFretes());
+  }, [refreshKey]);
+
+  const deletar = (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este frete?")) return;
+    deleteFrete(id);
+    setFretes(getFretes());
+    onDeleted();
+  };
+
+  const fretesFiltrados = fretes.filter((f) => {
+    const q = filtro.toLowerCase();
+    const matches =
+      f.oc.toLowerCase().includes(q) ||
+      (f.motoristaNome || "").toLowerCase().includes(q) ||
+      (f.placa || "").toLowerCase().includes(q) ||
+      (f.cliente || "").toLowerCase().includes(q);
+    const matchesRegiao = !filtroRegiao || f.regiao === filtroRegiao;
+    const matchesStatus = !filtroStatus || f.status === filtroStatus;
+    return matches && matchesRegiao && matchesStatus;
+  });
+
+  const regiaoLabel = (value: string) => regioes.find((r) => r.value === value)?.label || value;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Fretes Registrados</h1>
+        <p className="text-slate-500 mt-1">{fretes.length} fretes no total - salvos no navegador + Google Sheets</p>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-200 flex flex-wrap gap-3">
+        <input value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="🔍 Buscar por OC, motorista, placa..." className="flex-1 min-w-[200px] border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+        <select value={filtroRegiao} onChange={(e) => setFiltroRegiao(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+          <option value="">Todas as regiões</option>
+          {regioes.map((r) => (
+            <option key={r.value} value={r.value}>{r.label}</option>
+          ))}
+        </select>
+        <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+          <option value="">Todos os status</option>
+          <option value="pendente">Pendente</option>
+          <option value="em_rota">Em rota</option>
+          <option value="concluido">Concluído</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">OC</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">Data</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">Motorista</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">Placa</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">Região</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-700">Ton.</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-700">Entregas</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-700">Valor</th>
+                <th className="text-center px-4 py-3 font-semibold text-slate-700">Status</th>
+                <th className="text-center px-4 py-3 font-semibold text-slate-700">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {fretesFiltrados.length === 0 && (
+                <tr><td colSpan={10} className="text-center py-8 text-slate-400">Nenhum frete encontrado</td></tr>
+              )}
+              {fretesFiltrados.map((f) => (
+                <tr key={f.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-medium">{f.oc}</td>
+                  <td className="px-4 py-3 text-slate-600">{f.dataCarregamento || "-"}</td>
+                  <td className="px-4 py-3">{f.motoristaNome || "-"}</td>
+                  <td className="px-4 py-3 font-mono text-xs">{f.placa || "-"}</td>
+                  <td className="px-4 py-3">{regiaoLabel(f.regiao)}</td>
+                  <td className="px-4 py-3 text-right">{f.toneladas}t</td>
+                  <td className="px-4 py-3 text-right">{f.numEntregas}</td>
+                  <td className="px-4 py-3 text-right font-medium">R$ {(f.valorTotal || 0).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`text-xs px-2 py-1 rounded-full ${f.status === "concluido" ? "bg-emerald-100 text-emerald-700" : f.status === "em_rota" ? "bg-blue-100 text-blue-700" : f.status === "cancelado" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>{f.status}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => onOpenDetail(f.id)} className="text-blue-600 hover:text-blue-800 text-xs font-medium">Abrir</button>
+                      <button onClick={() => deletar(f.id)} className="text-red-600 hover:text-red-800 text-xs font-medium">Excluir</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
