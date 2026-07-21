@@ -271,19 +271,28 @@ function doGet(e) {
   const action = e.parameter.action;
   if (action === 'get') {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const fretesSheet = ss.getSheetByName('Fretes') || ss.insertSheet('Fretes');
-    const motoristasSheet = ss.getSheetByName('Motoristas') || ss.insertSheet('Motoristas');
-    
-    // Ler Fretes (se tiver cabeçalho)
-    const fretesData = fretesSheet.getDataRange().getValues();
-    // Implementação simples: retorna tudo como JSON salvo em uma célula ou Properties
-    
-    // Para simplificar, usamos PropertiesService para armazenar JSON completo
     const props = PropertiesService.getScriptProperties();
+    
+    // Tenta ler config da Property, se não houver, tenta ler da aba Configuracoes
+    let configObj = {};
+    const configProp = props.getProperty('config');
+    if (configProp) {
+      try { configObj = JSON.parse(configProp); } catch(err) {}
+    } else {
+      const configSheet = ss.getSheetByName('Configuracoes');
+      if (configSheet) {
+        const values = configSheet.getDataRange().getValues();
+        if (values.length > 1 && values[1][0]) {
+          try { configObj = JSON.parse(values[1][0]); } catch(err) {}
+        }
+      }
+    }
+    
     const data = {
       fretes: JSON.parse(props.getProperty('fretes') || '[]'),
       motoristas: JSON.parse(props.getProperty('motoristas') || '[]'),
-      entregas: JSON.parse(props.getProperty('entregas') || '[]')
+      entregas: JSON.parse(props.getProperty('entregas') || '[]'),
+      config: configObj
     };
     
     return ContentService.createTextOutput(JSON.stringify({ok:true, data:data}))
@@ -302,9 +311,19 @@ function doPost(e) {
       if (body.data.fretes) props.setProperty('fretes', JSON.stringify(body.data.fretes));
       if (body.data.motoristas) props.setProperty('motoristas', JSON.stringify(body.data.motoristas));
       if (body.data.entregas) props.setProperty('entregas', JSON.stringify(body.data.entregas));
+      if (body.data.config) props.setProperty('config', JSON.stringify(body.data.config));
       
-      // Também escreve em abas visíveis para conferência
       const ss = SpreadsheetApp.getActiveSpreadsheet();
+      
+      // Salva Configurações na aba Configuracoes
+      if (body.data.config) {
+        let configSheet = ss.getSheetByName('Configuracoes');
+        if (!configSheet) configSheet = ss.insertSheet('Configuracoes');
+        configSheet.clear();
+        configSheet.appendRow(['JSON_DATA']);
+        configSheet.appendRow([JSON.stringify(body.data.config)]);
+      }
+      
       let sheet = ss.getSheetByName('Fretes');
       if (!sheet) sheet = ss.insertSheet('Fretes');
       sheet.clear();

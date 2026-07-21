@@ -32,7 +32,7 @@ export default function ListaFretes({ refreshKey, onOpenDetail, onDeleted, sessa
   const fretesFiltrados = fretes.filter((f) => {
     const q = filtro.toLowerCase();
     const matches =
-      f.oc.toLowerCase().includes(q) ||
+      String(f.oc || "").toLowerCase().includes(q) ||
       (f.motoristaNome || "").toLowerCase().includes(q) ||
       (f.placa || "").toLowerCase().includes(q) ||
       (f.cliente || "").toLowerCase().includes(q);
