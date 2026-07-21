@@ -434,12 +434,14 @@ export function deleteAnexo(id: string) {
 // ---------------------------------------------------------------------------
 // Google Sheets Sync — CORRIGIDO para funcionar com CORS no GitHub Pages
 // ---------------------------------------------------------------------------
-// PROBLEMA: Google Apps Script Web Apps causam erro CORS quando chamados via
-// fetch() de uma origem diferente (ex.: rayandantas13-lang.github.io).
+// PROBLEMA: Google Apps Script Web Apps fazem redirect 302 interno que
+// bloqueia fetch() cross-origin, mesmo com mode: 'no-cors'.
 // SOLUÇÃO:
-//   • POST (enviar dados): usar Content-Type: text/plain + mode: 'no-cors'
-//     para evitar preflight. O dado chega ao Apps Script com sucesso.
-//   • GET (receber dados): usar JSONP (tag <script>) que bypassa CORS
+//   • POST (enviar dados): form submission em iframe oculto — é a ÚNICA
+//     forma confiável de enviar POST cross-origin ao Apps Script porque
+//     forms bypassam CORS (são navegação, não XHR). O Apps Script precisa
+//     aceitar tanto JSON no body quanto form-encoded (e.parameter.data).
+//   • GET (receber dados): JSONP (tag <script>) que bypassa CORS
 //     completamente. O Apps Script precisa suportar parâmetro `callback`.
 // ---------------------------------------------------------------------------
 
@@ -537,6 +539,52 @@ async function fetchFromAppsScript(baseUrl: string): Promise<any> {
   );
 }
 
+/**
+ * Envia dados ao Apps Script via form submission em iframe oculto.
+ * Este é o ÚNICO método confiável para POST cross-origin ao Google Apps
+ * Script, pois forms são tratados como navegação (não XHR) e bypassam
+ * CORS completamente, incluindo o redirect 302 que o Apps Script faz.
+ */
+function formPostToAppsScript(url: string, payload: any): Promise<{ ok: boolean }> {
+  return new Promise((resolve, reject) => {
+    try {
+      const iframeName = "fretecontrol_post_" + Date.now();
+      const iframe = document.createElement("iframe");
+      iframe.name = iframeName;
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
+
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = url;
+      form.target = iframeName;
+
+      // Dados enviados como campo de formulário — o Apps Script lê via e.parameter.data
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "data";
+      input.value = JSON.stringify(payload);
+      form.appendChild(input);
+
+      document.body.appendChild(form);
+      form.submit();
+
+      // Não é possível ler a resposta do iframe (CORS), mas o POST foi enviado.
+      // Limpa o iframe e form depois de um tempo.
+      setTimeout(() => {
+        try {
+          document.body.removeChild(form);
+          document.body.removeChild(iframe);
+        } catch { /* já foi removido */ }
+      }, 5000);
+
+      resolve({ ok: true });
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
 export async function syncToSheets() {
   if (!isBrowser()) return;
   const cfg = getConfig();
@@ -551,28 +599,50 @@ export async function syncToSheets() {
     updatedAt: nowISO(),
   };
 
-  // 1. Se apiKey for URL do Apps Script, faz POST com mode: 'no-cors'
-  //    Content-Type: text/plain evita preflight CORS.
   if (gs.apiKey && gs.apiKey.startsWith("https://script.google.com")) {
+    const payload = { action: "save", data };
+
+    // Estratégia 1: Form POST em iframe oculto (MAIS CONFIÁVEL)
+    // Bypassa CORS completamente pois forms são navegação, não XHR.
+    try {
+      await formPostToAppsScript(gs.apiKey, payload);
+      console.log("Sincronizado com Apps Script (form POST)");
+      return { ok: true, method: "form_post" };
+    } catch {
+      // Form POST falhou, tenta próximo
+    }
+
+    // Estratégia 2: navigator.sendBeacon (fire-and-forget, sem CORS preflight)
+    try {
+      if (navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify(payload)], { type: "text/plain" });
+        const sent = navigator.sendBeacon(gs.apiKey, blob);
+        if (sent) {
+          console.log("Sincronizado com Apps Script (sendBeacon)");
+          return { ok: true, method: "sendBeacon" };
+        }
+      }
+    } catch {
+      // sendBeacon falhou, tenta próximo
+    }
+
+    // Estratégia 3: fetch com mode: 'no-cors' (último recurso)
     try {
       await fetch(gs.apiKey, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ action: "save", data }),
+        body: JSON.stringify(payload),
         mode: "no-cors",
       });
-      // Com mode: 'no-cors', a resposta é opaca (status 0), mas o dado foi enviado.
-      console.log("Sincronizado com Apps Script (no-cors POST)");
+      console.log("Sincronizado com Apps Script (no-cors fetch)");
       return { ok: true, method: "apps_script" };
     } catch (e) {
-      console.warn("Erro sync Apps Script POST", e);
+      console.warn("Erro sync Apps Script — todas as estratégias falharam", e);
     }
   }
 
-  // 2. Se tiver spreadsheetId, salva em localStorage cache para export manual
+  // Se chegou aqui, salva em localStorage cache para export manual
   save(KEYS.sheetsCache, data);
-
-  // 3. Modo local
   return { ok: true, method: "local_cache" };
 }
 

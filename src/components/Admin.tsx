@@ -264,16 +264,17 @@ export default function Admin() {
         </div>
 
         <details className="text-sm">
-          <summary className="cursor-pointer font-medium">📜 Código Apps Script (cole no Apps Script da planilha) — ATUALIZADO com suporte a JSONP</summary>
+          <summary className="cursor-pointer font-medium">📜 Código Apps Script (cole no Apps Script da planilha) — ATUALIZADO v2</summary>
           <pre className="mt-2 bg-slate-900 text-slate-100 p-3 rounded text-xs overflow-x-auto">{`// Código para colar no Apps Script da sua planilha
 // Extensões > Apps Script
 //
-// IMPORTANTE: Suporte a JSONP (callback) para bypassar CORS
-// quando o site é acessado de origens diferentes (ex.: GitHub Pages).
+// IMPORTANTE v2: Suporte a JSONP (callback) para GET e
+// suporte a form-encoded POST (campo "data") para bypassar
+// o redirect 302 do Google Apps Script que bloqueia fetch().
 
 function doGet(e) {
   var action = e.parameter.action;
-  var callback = e.parameter.callback; // Suporte a JSONP
+  var callback = e.parameter.callback; // JSONP
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
   
   if (action === "get") {
@@ -299,7 +300,6 @@ function doGet(e) {
     
     var jsonOutput = JSON.stringify({ status: "success", data: data });
     
-    // JSONP: se callback foi fornecido, envolve a resposta
     if (callback) {
       return ContentService.createTextOutput(callback + "(" + jsonOutput + ")")
         .setMimeType(ContentService.MimeType.JAVASCRIPT);
@@ -311,7 +311,28 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  var postData = JSON.parse(e.postData.contents);
+  var postData = null;
+  
+  // Tenta ler como JSON no body (via fetch/sendBeacon)
+  if (e.postData && e.postData.contents) {
+    try { postData = JSON.parse(e.postData.contents); }
+    catch(err) { /* não é JSON puro */ }
+  }
+  
+  // Se falhou, tenta como form-encoded (via form iframe)
+  if (!postData && e.parameter && e.parameter.data) {
+    try { postData = JSON.parse(e.parameter.data); }
+    catch(err) {
+      return ContentService.createTextOutput(JSON.stringify({ status: "error" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  if (!postData) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  
   var action = postData.action;
   var data = postData.data;
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
