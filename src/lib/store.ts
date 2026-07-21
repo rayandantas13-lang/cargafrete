@@ -493,10 +493,19 @@ export async function syncFromSheets(): Promise<{ ok: boolean; count?: number; e
       const res = await fetch(gs.apiKey + "?action=get", { method: "GET" });
       const json = await res.json();
       if (json.data) {
-        if (json.data.fretes) save(KEYS.fretes, json.data.fretes);
-        if (json.data.motoristas) save(KEYS.motoristas, json.data.motoristas);
-        if (json.data.entregas) save(KEYS.entregas, json.data.entregas);
-        return { ok: true, count: json.data.fretes?.length || 0 };
+        // Só sobrescreve localStorage se a planilha tiver dados de verdade.
+        // Evita apagar tudo quando a planilha volta vazia.
+        const hasAny =
+          (Array.isArray(json.data.fretes) && json.data.fretes.length > 0) ||
+          (Array.isArray(json.data.motoristas) && json.data.motoristas.length > 0) ||
+          (Array.isArray(json.data.entregas) && json.data.entregas.length > 0);
+
+        if (hasAny) {
+          if (Array.isArray(json.data.fretes)) save(KEYS.fretes, json.data.fretes);
+          if (Array.isArray(json.data.motoristas)) save(KEYS.motoristas, json.data.motoristas);
+          if (Array.isArray(json.data.entregas)) save(KEYS.entregas, json.data.entregas);
+        }
+        return { ok: true, count: Array.isArray(json.data.fretes) ? json.data.fretes.length : 0 };
       }
     } catch (e: any) {
       return { ok: false, error: e.message };

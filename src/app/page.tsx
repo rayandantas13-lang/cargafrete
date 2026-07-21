@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import Dashboard from "@/components/Dashboard";
 import NovoFrete from "@/components/NovoFrete";
@@ -10,7 +10,7 @@ import Rotas from "@/components/Rotas";
 import Motoristas from "@/components/Motoristas";
 import Admin from "@/components/Admin";
 import Login from "@/components/Login";
-import type { SessaoAcesso } from "@/lib/store";
+import { getConfig, syncFromSheets, type SessaoAcesso } from "@/lib/store";
 
 export type TabKey =
   | "dashboard"
@@ -32,6 +32,34 @@ export default function Home() {
   const [freteRefresh, setFreteRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const didAutoSync = useRef(false);
+
+  useEffect(() => {
+    // Sincronização automática com a planilha ao abrir o app.
+    // Executa apenas uma vez por carregamento (mesmo com React StrictMode).
+    if (didAutoSync.current) return;
+    didAutoSync.current = true;
+
+    let ativo = true;
+    (async () => {
+      try {
+        const cfg = getConfig();
+        const gs = cfg.googleSheets;
+        const temAppsScript = gs.apiKey && gs.apiKey.startsWith("https://script.google.com");
+        const temSheetsApi = gs.apiKey && !gs.apiKey.startsWith("https://") && gs.spreadsheetId;
+
+        if (temAppsScript || temSheetsApi) {
+          const result = await syncFromSheets();
+          if (ativo && result.ok) {
+            setFreteRefresh((r) => r + 1);
+          }
+        }
+      } catch {
+        // Ignora erros (offline ou planilha indisponível)
+      }
+    })();
+    return () => { ativo = false; };
+  }, []);
 
   useEffect(() => {
     // Carregar sessão do localStorage
