@@ -43,6 +43,8 @@ jobs:
         run: npm run build
         env:
           GITHUB_PAGES: "true"
+          NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY: ${{ vars.NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY }}
+          NEXT_PUBLIC_SPREADSHEET_ID: ${{ vars.NEXT_PUBLIC_SPREADSHEET_ID }}
 
       - name: 📄 Setup Pages
         uses: actions/configure-pages@v4
