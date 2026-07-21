@@ -2,18 +2,19 @@
 
 import { useEffect, useState } from "react";
 import type { Frete, Entrega } from "@/lib/store";
-import { getFretes, getEntregasByFreteId } from "@/lib/store";
+import { getFretesVisiveis, getEntregasByFreteId, type SessaoAcesso } from "@/lib/store";
 
 interface RotasProps {
   refreshKey: number;
+  sessao: SessaoAcesso;
 }
 
-export default function Rotas({ refreshKey }: RotasProps) {
+export default function Rotas({ refreshKey, sessao }: RotasProps) {
   const [fretesComEntrega, setFretesComEntrega] = useState<(Frete & { entregas: Entrega[] })[]>([]);
   const [freteSelecionado, setFreteSelecionado] = useState<string>("");
 
   useEffect(() => {
-    const fretes = getFretes();
+    const fretes = getFretesVisiveis(sessao);
     const comEntregas = fretes
       .map((f) => ({ ...f, entregas: getEntregasByFreteId(f.id) }))
       .filter((f) => f.entregas.length > 0);

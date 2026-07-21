@@ -3,7 +3,7 @@ import type { TabKey } from "@/app/page";
 interface SidebarProps {
   activeTab: TabKey;
   onChangeTab: (tab: TabKey) => void;
-  userRole: "admin" | "motorista";
+  userRole: "admin" | "proprietario" | "motorista";
   userName: string;
   onLogout: () => void;
 }
@@ -19,7 +19,7 @@ const menuItems: { key: TabKey; label: string; icon: string; adminOnly?: boolean
 
 export default function Sidebar({ activeTab, onChangeTab, userRole, userName, onLogout }: SidebarProps) {
   const itensVisiveis = menuItems.filter((item) => {
-    if (userRole === "motorista" && item.adminOnly) return false;
+    if (userRole !== "admin" && item.adminOnly) return false;
     return true;
   });
 
