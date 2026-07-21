@@ -67,39 +67,52 @@ export const defaultConfig: AppConfig = {
 
 export function calcularValorFrete(
   cfg: AppConfig,
-  regiao: string,
+  regiaoPrincipal: string,
   toneladas: number,
-  numEntregas: number
+  numEntregas: number,
+  entregasItens?: { regiao?: string }[]
 ) {
   const t = cfg.tarifas;
   const valorTonelada = t.valorTonelada * toneladas;
 
-  let valorPorEntrega = 0;
-  switch (regiao) {
-    case "goiania":
-      valorPorEntrega = t.valorEntregaGoiania;
-      break;
-    case "trindade":
-      valorPorEntrega = t.valorEntregaTrindade;
-      break;
-    case "senador_canedo":
-      valorPorEntrega = t.valorEntregaSenadorCanedo;
-      break;
-    case "goianira":
-      valorPorEntrega = t.valorEntregaGoianira;
-      break;
-    case "abadia":
-      valorPorEntrega = t.valorEntregaAbadia;
-      break;
-    default:
-      valorPorEntrega = t.valorEntregaGoiania;
+  let valorEntregas = 0;
+  let valorExtra = 0;
+  const limite = t.limiteEntregas;
+
+  const getRate = (reg: string) => {
+    switch (reg) {
+      case "goiania":
+        return t.valorEntregaGoiania;
+      case "trindade":
+        return t.valorEntregaTrindade;
+      case "senador_canedo":
+        return t.valorEntregaSenadorCanedo;
+      case "goianira":
+        return t.valorEntregaGoianira;
+      case "abadia":
+        return t.valorEntregaAbadia;
+      default:
+        return t.valorEntregaGoiania;
+    }
+  };
+
+  if (entregasItens && entregasItens.length > 0) {
+    entregasItens.forEach((item, index) => {
+      const reg = item.regiao || regiaoPrincipal;
+      if (index < limite) {
+        valorEntregas += getRate(reg);
+      } else {
+        valorExtra += t.valorExtraApos7Entregas;
+      }
+    });
+  } else {
+    const entregasNormais = Math.min(numEntregas, limite);
+    const entregasExtras = Math.max(0, numEntregas - limite);
+    const valorPorEntrega = getRate(regiaoPrincipal);
+    valorEntregas = entregasNormais * valorPorEntrega;
+    valorExtra = entregasExtras * t.valorExtraApos7Entregas;
   }
 
-  const limite = t.limiteEntregas;
-  const entregasNormais = Math.min(numEntregas, limite);
-  const entregasExtras = Math.max(0, numEntregas - limite);
-  const valorEntregas = entregasNormais * valorPorEntrega;
-  const valorExtra = entregasExtras * t.valorExtraApos7Entregas;
   const valorTotal = valorTonelada + valorEntregas + valorExtra;
 
   return {
@@ -107,6 +120,6 @@ export function calcularValorFrete(
     valorEntregas,
     valorExtraEntregas: valorExtra,
     valorTotal,
-    valorPorEntrega,
+    valorPorEntrega: getRate(regiaoPrincipal),
   };
 }

@@ -10,6 +10,8 @@ export interface Motorista {
   telefone?: string;
   veiculo?: string;
   observacoes?: string;
+  senha?: string;
+  primeiroAcesso?: boolean;
   createdAt: string;
 }
 
@@ -19,6 +21,7 @@ export interface Entrega {
   endereco: string;
   bairro?: string;
   cidade?: string;
+  regiao?: string;
   distanciaKm: number;
   ordem: number;
   concluida: boolean;
@@ -118,12 +121,17 @@ export function saveMotorista(data: Omit<Motorista, "id" | "createdAt"> & { id?:
   if (data.id) {
     const idx = lista.findIndex((m) => m.id === data.id);
     if (idx >= 0) {
-      lista[idx] = { ...lista[idx], ...data } as Motorista;
+      lista[idx] = {
+        ...lista[idx],
+        ...data,
+        senha: data.senha !== undefined ? data.senha : lista[idx].senha,
+      } as Motorista;
       save(KEYS.motoristas, lista);
       queueSheetsSync();
       return lista[idx];
     }
   }
+  const senhaInicial = Math.random().toString(36).substring(2, 8).toUpperCase();
   const novo: Motorista = {
     id: uid(),
     nome: data.nome,
@@ -132,12 +140,25 @@ export function saveMotorista(data: Omit<Motorista, "id" | "createdAt"> & { id?:
     telefone: data.telefone,
     veiculo: data.veiculo,
     observacoes: data.observacoes,
+    senha: data.senha || senhaInicial,
+    primeiroAcesso: true,
     createdAt: nowISO(),
   };
   lista.push(novo);
   save(KEYS.motoristas, lista);
   queueSheetsSync();
   return novo;
+}
+
+export function updateMotoristaSenha(motoristaId: string, novaSenha: string) {
+  const lista = getMotoristas();
+  const idx = lista.findIndex((m) => m.id === motoristaId);
+  if (idx >= 0) {
+    lista[idx].senha = novaSenha;
+    lista[idx].primeiroAcesso = false;
+    save(KEYS.motoristas, lista);
+    queueSheetsSync();
+  }
 }
 
 export function deleteMotorista(id: string) {
@@ -274,6 +295,7 @@ export function saveFrete(data: {
         endereco: e.endereco,
         bairro: (e as any).bairro || "",
         cidade: (e as any).cidade || "",
+        regiao: (e as any).regiao || frete.regiao,
         distanciaKm: (e as any).distanciaKm || 0,
         ordem: i,
         concluida: false,
