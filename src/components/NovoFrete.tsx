@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import type { Motorista } from "@/lib/store";
+import type { Motorista, SessaoAcesso } from "@/lib/store";
 import { getMotoristas, saveFrete, getConfig } from "@/lib/store";
 import { regioes, calcularValorFrete } from "@/lib/config";
 
 interface NovoFreteProps {
   onSaved: () => void;
+  sessao: SessaoAcesso;
 }
 
 interface EntregaForm {
@@ -27,7 +28,7 @@ interface AnexoForm {
   dataUrl: string;
 }
 
-export default function NovoFrete({ onSaved }: NovoFreteProps) {
+export default function NovoFrete({ onSaved, sessao }: NovoFreteProps) {
   const [motoristas, setMotoristas] = useState<Motorista[]>([]);
   const [motoristaId, setMotoristaId] = useState("");
   const [motoristaNome, setMotoristaNome] = useState("");
@@ -58,8 +59,27 @@ export default function NovoFrete({ onSaved }: NovoFreteProps) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setMotoristas(getMotoristas());
-  }, []);
+    const todos = getMotoristas();
+    setMotoristas(todos);
+
+    // Motorista funcionário: o frete é automaticamente vinculado ao próprio cadastro
+    if (sessao.role === "motorista" && sessao.id) {
+      const eu = todos.find((m) => m.id === sessao.id);
+      if (eu) {
+        setMotoristaId(eu.id);
+        setMotoristaNome(eu.nome);
+        setPlaca(eu.placa);
+      }
+    } else if (sessao.role === "proprietario" && sessao.id) {
+      // Proprietário pode criar para ele mesmo: pré-seleciona o próprio cadastro
+      const eu = todos.find((m) => m.id === sessao.id);
+      if (eu) {
+        setMotoristaId(eu.id);
+        setMotoristaNome(eu.nome);
+        setPlaca(eu.placa);
+      }
+    }
+  }, [sessao.id, sessao.role]);
 
   const handleMotoristaChange = (id: string) => {
     setMotoristaId(id);
@@ -126,6 +146,38 @@ export default function NovoFrete({ onSaved }: NovoFreteProps) {
       alert("Preencha a OC e informe toneladas e número de entregas em pelo menos uma rota");
       return;
     }
+
+    // Validação de hierarquia antes de salvar
+    if (sessao.role === "motorista") {
+      // Motorista funcionário só pode criar frete para o próprio cadastro
+      if (!sessao.id || motoristaId !== sessao.id) {
+        alert("Você só pode registrar fretes para o seu próprio cadastro.");
+        return;
+      }
+    } else if (sessao.role === "proprietario") {
+      // Proprietário pode criar para ele mesmo ou funcionários vinculados
+      if (!sessao.id) {
+        alert("Sessão inválida.");
+        return;
+      }
+      const permitido = motoristas.find(
+        (m) => m.id === sessao.id || m.proprietarioId === sessao.id,
+      );
+      if (!motoristaId || !permitido || permitido.id !== motoristaId) {
+        alert("Selecione você mesmo ou um motorista funcionário vinculado.");
+        return;
+      }
+    } else if (sessao.role === "admin") {
+      // Admin pode criar sem restrição de vínculo
+      if (motoristaId) {
+        const existe = motoristas.find((m) => m.id === motoristaId);
+        if (!existe) {
+          alert("Motorista selecionado não encontrado.");
+          return;
+        }
+      }
+    }
+
     saveFrete({
       oc,
       motoristaId: motoristaId || null,
@@ -172,16 +224,39 @@ export default function NovoFrete({ onSaved }: NovoFreteProps) {
 
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 space-y-4">
         <h2 className="font-semibold text-lg border-b pb-2">👤 Motorista & Veículo</h2>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Motorista cadastrado (opcional)</label>
-          <select value={motoristaId} onChange={(e) => handleMotoristaChange(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2">
-            <option value="">-- Selecionar ou preencher manualmente --</option>
-            {motoristas.map((m) => (<option key={m.id} value={m.id}>{m.nome} - {m.placa}</option>))}
-          </select>
-        </div>
+        {sessao.role === "admin" && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Motorista cadastrado (opcional)</label>
+            <select value={motoristaId} onChange={(e) => handleMotoristaChange(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2">
+              <option value="">-- Selecionar ou preencher manualmente --</option>
+              {motoristas.map((m) => (<option key={m.id} value={m.id}>{m.nome} - {m.placa}</option>))}
+            </select>
+          </div>
+        )}
+        {sessao.role === "proprietario" && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Motorista (você ou um funcionário vinculado)</label>
+            <select value={motoristaId} onChange={(e) => handleMotoristaChange(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2">
+              <option value="">-- Selecione --</option>
+              {motoristas
+                .filter((m) => m.id === sessao.id || m.proprietarioId === sessao.id)
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nome} - {m.placa}{(m.tipo || "proprietario") === "funcionario" ? " (funcionário)" : ""}
+                  </option>
+                ))}
+            </select>
+            <p className="text-xs text-slate-500 mt-1">Você pode lançar fretes para você mesmo ou para os motoristas funcionários vinculados a você.</p>
+          </div>
+        )}
+        {sessao.role === "motorista" && (
+          <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600">
+            O frete será registrado automaticamente para <strong>{motoristaNome || "seu cadastro"}</strong> ({placa || "sem placa"}).
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><label className="block text-sm font-medium text-slate-700 mb-1">Nome do Motorista</label><input value={motoristaNome} onChange={(e) => setMotoristaNome(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="Nome completo" /></div>
-          <div><label className="block text-sm font-medium text-slate-700 mb-1">Placa</label><input value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="ABC-1234" maxLength={8} /></div>
+          <div><label className="block text-sm font-medium text-slate-700 mb-1">Nome do Motorista</label><input value={motoristaNome} onChange={(e) => setMotoristaNome(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="Nome completo" readOnly={sessao.role === "motorista"} /></div>
+          <div><label className="block text-sm font-medium text-slate-700 mb-1">Placa</label><input value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="ABC-1234" maxLength={8} readOnly={sessao.role === "motorista"} /></div>
         </div>
       </div>
 
@@ -256,7 +331,7 @@ export default function NovoFrete({ onSaved }: NovoFreteProps) {
       </div>
 
       <div className="flex justify-end gap-3 pb-8">
-        <button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium shadow-sm transition">💾 Salvar Frete (Google Sheets)</button>
+        <button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium shadow-sm transition">💾 Salvar Frete</button>
       </div>
     </div>
   );

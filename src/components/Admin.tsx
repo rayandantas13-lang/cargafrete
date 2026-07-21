@@ -46,7 +46,7 @@ export default function Admin() {
   const salvar = () => {
     setSalvando(true);
     saveConfig(cfg);
-    setMsg("✓ Configurações salvas! Dados serão sincronizados com Google Sheets.");
+    setMsg("✓ Configurações salvas com sucesso!");
     setSalvando(false);
     setTimeout(() => setMsg(""), 4000);
   };
@@ -97,10 +97,10 @@ export default function Admin() {
   };
 
   const handleClear = () => {
-    if (!confirm("Apagar TODOS os dados do navegador? Isso não apaga a planilha, mas limpa o cache local.")) return;
+    if (!confirm("Apagar TODOS os dados?")) return;
     clearAllData();
     setCfg(defaultConfig);
-    setMsg("🗑️ Dados locais apagados");
+    setMsg("🗑️ Dados apagados");
   };
 
   if (autenticado === null) return <div className="flex items-center justify-center min-h-[60vh]"><div className="text-slate-500">Verificando...</div></div>;
@@ -126,11 +126,9 @@ export default function Admin() {
   return (
     <div className="space-y-6 max-w-5xl">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-3xl font-bold">⚙️ Admin - Google Sheets como Banco</h1><p className="text-slate-500 mt-1">100% no navegador, sincronizado com planilha</p></div>
+        <div><h1 className="text-3xl font-bold">⚙️ Administração</h1></div>
         <button onClick={logout} className="text-slate-600 hover:text-slate-900 text-sm bg-white border border-slate-200 px-4 py-2 rounded-lg">🚪 Sair</button>
       </div>
-
-      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-800">✅ Banco de dados: <strong>Google Sheets + LocalStorage</strong> - Sem Docker, sem Postgres. Funciona 100% no GitHub Pages!</div>
 
       {msg && <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-lg px-4 py-2 text-sm">{msg}</div>}
       {syncStatus && <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-2 text-sm">{syncStatus}</div>}
@@ -162,18 +160,18 @@ export default function Admin() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 space-y-4">
-        <h2 className="font-semibold text-lg border-b pb-2">📊 Google Sheets como Banco de Dados</h2>
-        
+        <h2 className="font-semibold text-lg border-b pb-2">🔗 Integrações</h2>
+
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-2">
-          <p className="font-bold">🎯 Como usar Google Sheets como banco (3 opções):</p>
-          
+          <p className="font-bold">Como configurar a integração com Google Sheets:</p>
+
           <div className="bg-white rounded p-3 border">
-            <p className="font-semibold">Opção 1: Mais simples - API Key (só leitura da planilha + escrita local)</p>
+            <p className="font-semibold">Opção 1: Mais simples - API Key (somente leitura da planilha)</p>
             <ol className="list-decimal ml-5 space-y-1 mt-1">
               <li>Crie planilha no Google Sheets, copie ID da URL: docs.google.com/spreadsheets/d/ID_AQUI/edit</li>
               <li>Em console.cloud.google.com - APIs - Ative Sheets API - Credenciais - Criar API Key</li>
               <li>Cole API Key e Spreadsheet ID abaixo</li>
-              <li>Deixe planilha com acesso Qualquer pessoa com link pode visualizar</li>
+              <li>Deixe planilha com acesso "Qualquer pessoa com link pode visualizar"</li>
               <li>Clique em Sincronizar da Planilha para carregar</li>
             </ol>
           </div>
@@ -185,13 +183,8 @@ export default function Admin() {
               <li>Apague código e cole o código fornecido abaixo</li>
               <li>Clique em <b>Implantar - Nova implantação</b> - Tipo: <b>App da Web</b> - Acesso: <b>Qualquer pessoa</b> - Implantar</li>
               <li>Copie a URL do App e cole no campo <b>API Key</b> abaixo (sim, no campo API Key!)</li>
-              <li>Agora o app salva direto na planilha!</li>
+              <li>Pronto! O app salva direto na planilha.</li>
             </ol>
-          </div>
-
-          <div className="bg-white rounded p-3 border">
-            <p className="font-semibold">Opção 3: Sem planilha (só navegador)</p>
-            <p>Deixe campos vazios. Dados ficam só no navegador (localStorage). Use Exportar JSON para backup.</p>
           </div>
         </div>
 
@@ -215,7 +208,7 @@ export default function Admin() {
           <button onClick={handleSyncToSheets} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">📤 Enviar para Planilha</button>
           <button onClick={exportar} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm">💾 Exportar JSON</button>
           <label className="bg-slate-100 hover:bg-slate-200 border border-slate-300 px-4 py-2 rounded-lg text-sm cursor-pointer">📂 Importar JSON<input type="file" accept=".json" onChange={handleImport} className="hidden" /></label>
-          <button onClick={handleClear} className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm">🗑️ Limpar Local</button>
+          <button onClick={handleClear} className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm">🗑️ Limpar dados</button>
         </div>
 
         <details className="text-sm">

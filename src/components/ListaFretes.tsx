@@ -47,7 +47,7 @@ export default function ListaFretes({ refreshKey, onOpenDetail, onDeleted, sessa
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Fretes Registrados</h1>
-        <p className="text-slate-500 mt-1">{fretes.length} fretes no total - salvos no navegador + Google Sheets</p>
+        <p className="text-slate-500 mt-1">{fretes.length} fretes no total</p>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-200 flex flex-wrap gap-3">

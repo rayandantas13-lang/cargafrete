@@ -53,7 +53,7 @@ export default function Home() {
     if (!session) return;
     const hash = window.location.hash.replace("#", "") as TabKey;
     if (hash && ["dashboard", "novo", "fretes", "rotas", "motoristas", "admin"].includes(hash)) {
-      if (session.role !== "admin" && ["novo", "motoristas", "admin"].includes(hash)) {
+      if (session.role !== "admin" && ["motoristas", "admin"].includes(hash)) {
         setTab("dashboard");
       } else {
         setTab(hash);
@@ -62,7 +62,7 @@ export default function Home() {
     const handler = () => {
       const h = window.location.hash.replace("#", "") as TabKey;
       if (h) {
-        if (session.role !== "admin" && ["novo", "motoristas", "admin"].includes(h)) {
+        if (session.role !== "admin" && ["motoristas", "admin"].includes(h)) {
           setTab("dashboard");
         } else {
           setTab(h);
@@ -87,7 +87,7 @@ export default function Home() {
   };
 
   const mudarTab = (novaTab: TabKey) => {
-    if (session?.role !== "admin" && ["novo", "motoristas", "admin"].includes(novaTab)) {
+    if (session?.role !== "admin" && ["motoristas", "admin"].includes(novaTab)) {
       alert("Acesso restrito a administradores.");
       return;
     }
@@ -130,8 +130,9 @@ export default function Home() {
         {tab === "dashboard" && (
           <Dashboard onNavigate={mudarTab} refreshKey={freteRefresh} sessao={session} />
         )}
-        {tab === "novo" && session.role === "admin" && (
+        {tab === "novo" && (session.role === "admin" || session.role === "proprietario" || session.role === "motorista") && (
           <NovoFrete
+            sessao={session}
             onSaved={() => {
               atualizarFretes();
               mudarTab("fretes");

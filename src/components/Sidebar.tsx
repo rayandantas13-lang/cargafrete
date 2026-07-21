@@ -10,7 +10,7 @@ interface SidebarProps {
 
 const menuItems: { key: TabKey; label: string; icon: string; adminOnly?: boolean }[] = [
   { key: "dashboard", label: "Dashboard", icon: "📊" },
-  { key: "novo", label: "Novo Frete", icon: "➕", adminOnly: true },
+  { key: "novo", label: "Novo Frete", icon: "➕" },
   { key: "fretes", label: "Fretes", icon: "🚛" },
   { key: "rotas", label: "Rotas & Mapas", icon: "🗺️" },
   { key: "motoristas", label: "Motoristas", icon: "👤", adminOnly: true },
@@ -19,7 +19,7 @@ const menuItems: { key: TabKey; label: string; icon: string; adminOnly?: boolean
 
 export default function Sidebar({ activeTab, onChangeTab, userRole, userName, onLogout }: SidebarProps) {
   const itensVisiveis = menuItems.filter((item) => {
-    if (userRole !== "admin" && item.adminOnly) return false;
+    if (item.adminOnly) return userRole === "admin";
     return true;
   });
 
