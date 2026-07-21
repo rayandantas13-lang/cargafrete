@@ -431,7 +431,18 @@ export function deleteAnexo(id: string) {
   queueSheetsSync();
 }
 
-// Google Sheets Sync
+// ---------------------------------------------------------------------------
+// Google Sheets Sync — CORRIGIDO para funcionar com CORS no GitHub Pages
+// ---------------------------------------------------------------------------
+// PROBLEMA: Google Apps Script Web Apps causam erro CORS quando chamados via
+// fetch() de uma origem diferente (ex.: rayandantas13-lang.github.io).
+// SOLUÇÃO:
+//   • POST (enviar dados): usar Content-Type: text/plain + mode: 'no-cors'
+//     para evitar preflight. O dado chega ao Apps Script com sucesso.
+//   • GET (receber dados): usar JSONP (tag <script>) que bypassa CORS
+//     completamente. O Apps Script precisa suportar parâmetro `callback`.
+// ---------------------------------------------------------------------------
+
 let syncTimeout: any = null;
 
 function queueSheetsSync() {
@@ -442,13 +453,96 @@ function queueSheetsSync() {
   }, 1500);
 }
 
+/**
+ * JSONP — carrega dados do Apps Script via tag <script>, bypassando CORS.
+ * O Apps Script deve suportar o parâmetro `callback` no doGet().
+ */
+function jsonpFetch(url: string, timeoutMs = 15000): Promise<any> {
+  return new Promise((resolve, reject) => {
+    if (!isBrowser()) { reject(new Error("no browser")); return; }
+
+    const callbackName =
+      "fretecontrol_jsonp_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+    const script = document.createElement("script");
+    let settled = false;
+
+    const cleanup = () => {
+      try {
+        delete (window as any)[callbackName];
+      } catch { /* ignore */ }
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        reject(new Error("JSONP timeout"));
+      }
+    }, timeoutMs);
+
+    (window as any)[callbackName] = (data: any) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        cleanup();
+        resolve(data);
+      }
+    };
+
+    const separator = url.includes("?") ? "&" : "?";
+    script.src = url + separator + "callback=" + callbackName;
+    script.onerror = () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        cleanup();
+        reject(new Error("JSONP request failed"));
+      }
+    };
+
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * Busca dados do Apps Script, tentando primeiro JSONP (bypassa CORS)
+ * e depois fetch com redirect: follow como fallback.
+ */
+async function fetchFromAppsScript(baseUrl: string): Promise<any> {
+  // 1. JSONP — bypassa CORS completamente (requer Apps Script atualizado com callback)
+  try {
+    const data = await jsonpFetch(baseUrl + "?action=get");
+    if (data && data.status === "success") return data;
+  } catch {
+    // JSONP falhou — pode ser que o script antigo não suporte callback
+  }
+
+  // 2. Fallback: fetch com redirect (funciona em alguns navegadores)
+  try {
+    const res = await fetch(baseUrl + "?action=get", {
+      method: "GET",
+      redirect: "follow",
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.status === "success") return json;
+    }
+  } catch {
+    // fetch também falhou
+  }
+
+  throw new Error(
+    "Não foi possível conectar ao Apps Script. Verifique se o script está atualizado (com suporte a callback) e implantado como 'Qualquer pessoa'."
+  );
+}
+
 export async function syncToSheets() {
   if (!isBrowser()) return;
   const cfg = getConfig();
   const gs = cfg.googleSheets;
 
-  // Se tiver spreadsheetId e apiKey ou privateKey, tenta sincronizar
-  // Para funcionar 100% no GitHub Pages, usamos Apps Script como proxy (se o user colar URL no campo apiKey)
+  // Monta os dados atuais do localStorage para enviar
   const data = {
     fretes: load<Frete[]>(KEYS.fretes, []),
     motoristas: load<Motorista[]>(KEYS.motoristas, []),
@@ -457,28 +551,28 @@ export async function syncToSheets() {
     updatedAt: nowISO(),
   };
 
-  // 1. Se apiKey na verdade for uma URL de Apps Script (começa com https://script.google.com), faz POST
+  // 1. Se apiKey for URL do Apps Script, faz POST com mode: 'no-cors'
+  //    Content-Type: text/plain evita preflight CORS.
   if (gs.apiKey && gs.apiKey.startsWith("https://script.google.com")) {
     try {
-      const res = await fetch(gs.apiKey, {
+      await fetch(gs.apiKey, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "save", data }),
+        mode: "no-cors",
       });
-      if (res.ok) {
-        console.log("Sincronizado com Apps Script");
-      }
+      // Com mode: 'no-cors', a resposta é opaca (status 0), mas o dado foi enviado.
+      console.log("Sincronizado com Apps Script (no-cors POST)");
       return { ok: true, method: "apps_script" };
     } catch (e) {
-      console.warn("Erro sync Apps Script", e);
+      console.warn("Erro sync Apps Script POST", e);
     }
   }
 
-  // 2. Se tiver spreadsheetId, tenta salvar em localStorage cache para export manual
-  // O push real para Sheets via API precisa de backend, mas deixamos dados prontos para o usuario copiar
+  // 2. Se tiver spreadsheetId, salva em localStorage cache para export manual
   save(KEYS.sheetsCache, data);
 
-  // 3. Se tiver apiKey e spreadsheetId (modo leitura/escrita via gapi), o usuário pode usar a função import
+  // 3. Modo local
   return { ok: true, method: "local_cache" };
 }
 
@@ -487,12 +581,11 @@ export async function syncFromSheets(): Promise<{ ok: boolean; count?: number; e
   const cfg = getConfig();
   const gs = cfg.googleSheets;
 
-  // Modo 1: Apps Script URL no campo apiKey
+  // Modo 1: Apps Script URL no campo apiKey — usa JSONP para bypassar CORS
   if (gs.apiKey && gs.apiKey.startsWith("https://script.google.com")) {
     try {
-      const res = await fetch(gs.apiKey + "?action=get", { method: "GET" });
-      const json = await res.json();
-      if (json.data) {
+      const json = await fetchFromAppsScript(gs.apiKey);
+      if (json && json.data) {
         // Só sobrescreve localStorage se a planilha tiver dados de verdade.
         // Evita apagar tudo quando a planilha volta vazia.
         const hasAny =
@@ -505,7 +598,7 @@ export async function syncFromSheets(): Promise<{ ok: boolean; count?: number; e
           if (Array.isArray(json.data.fretes)) save(KEYS.fretes, json.data.fretes);
           if (Array.isArray(json.data.motoristas)) save(KEYS.motoristas, json.data.motoristas);
           if (Array.isArray(json.data.entregas)) save(KEYS.entregas, json.data.entregas);
-          
+
           if (json.data.config && typeof json.data.config === "object") {
             const currentConfig = getConfig();
             const mergedConfig = {

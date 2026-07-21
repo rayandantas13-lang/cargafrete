@@ -1,8 +1,14 @@
 // Código para colar no Apps Script da sua planilha
 // Extensões > Apps Script
+//
+// IMPORTANTE: Este código suporta JSONP (parâmetro callback) para bypassar
+// restrições de CORS quando o site é acessado de origens diferentes
+// (ex.: GitHub Pages). Se o parâmetro "callback" estiver presente na URL,
+// a resposta é envolvida na função de callback para ser carregada via <script>.
 
 function doGet(e) {
   var action = e.parameter.action;
+  var callback = e.parameter.callback; // Suporte a JSONP
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
   
   if (action === "get") {
@@ -39,7 +45,15 @@ function doGet(e) {
       }
     }
     
-    return ContentService.createTextOutput(JSON.stringify({ status: "success", data: data }))
+    var jsonOutput = JSON.stringify({ status: "success", data: data });
+    
+    // JSONP: se callback foi fornecido, envolve a resposta na função
+    if (callback) {
+      return ContentService.createTextOutput(callback + "(" + jsonOutput + ")")
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
+    return ContentService.createTextOutput(jsonOutput)
       .setMimeType(ContentService.MimeType.JSON);
   }
 }

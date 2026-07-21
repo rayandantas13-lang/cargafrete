@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Controle de Fretes - Grande Goiânia",
   description: "Sistema de controle de frete e cargas de varejo",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

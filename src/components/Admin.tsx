@@ -231,11 +231,12 @@ export default function Admin() {
             <p className="font-semibold">Opção 2: Completa (recomendada) - Apps Script (leitura e escrita total)</p>
             <ol className="list-decimal ml-5 space-y-1 mt-1">
               <li>Na planilha: <b>Extensões - Apps Script</b></li>
-              <li>Apague código e cole o código fornecido abaixo</li>
+              <li>Apague código antigo e cole o <b>código atualizado</b> fornecido abaixo (com suporte a <b>callback/JSONP</b>)</li>
               <li>Clique em <b>Implantar - Nova implantação</b> - Tipo: <b>App da Web</b> - Acesso: <b>Qualquer pessoa</b> - Implantar</li>
               <li>Copie a URL do App e cole no campo <b>API Key</b> abaixo (sim, no campo API Key!)</li>
-              <li>Pronto! O app salva direto na planilha.</li>
+              <li>Pronto! O app salva e lê direto da planilha, sem erro de CORS.</li>
             </ol>
+            <p className="text-xs text-red-700 mt-2 font-bold">⚠️ Se você já tinha um script antigo, é OBRIGATÓRIO atualizar com o novo código abaixo (que suporta callback). Caso contrário, a sincronização não funciona no GitHub Pages.</p>
           </div>
         </div>
 
@@ -263,49 +264,48 @@ export default function Admin() {
         </div>
 
         <details className="text-sm">
-          <summary className="cursor-pointer font-medium">📜 Código Apps Script (cole no Apps Script da planilha)</summary>
+          <summary className="cursor-pointer font-medium">📜 Código Apps Script (cole no Apps Script da planilha) — ATUALIZADO com suporte a JSONP</summary>
           <pre className="mt-2 bg-slate-900 text-slate-100 p-3 rounded text-xs overflow-x-auto">{`// Código para colar no Apps Script da sua planilha
 // Extensões > Apps Script
+//
+// IMPORTANTE: Suporte a JSONP (callback) para bypassar CORS
+// quando o site é acessado de origens diferentes (ex.: GitHub Pages).
 
 function doGet(e) {
   var action = e.parameter.action;
+  var callback = e.parameter.callback; // Suporte a JSONP
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
   
   if (action === "get") {
     var data = {};
     
-    // Buscar Fretes
     var sheetFretes = sheet.getSheetByName("Fretes");
-    if (sheetFretes) {
-      data.fretes = getRowsData(sheetFretes);
-    }
+    if (sheetFretes) { data.fretes = getRowsData(sheetFretes); }
     
-    // Buscar Motoristas
     var sheetMotoristas = sheet.getSheetByName("Motoristas");
-    if (sheetMotoristas) {
-      data.motoristas = getRowsData(sheetMotoristas);
-    }
+    if (sheetMotoristas) { data.motoristas = getRowsData(sheetMotoristas); }
     
-    // Buscar Entregas
     var sheetEntregas = sheet.getSheetByName("Entregas");
-    if (sheetEntregas) {
-      data.entregas = getRowsData(sheetEntregas);
-    }
+    if (sheetEntregas) { data.entregas = getRowsData(sheetEntregas); }
     
-    // Buscar Configuracoes
     var sheetConfig = sheet.getSheetByName("Configuracoes");
     if (sheetConfig) {
       var rows = sheetConfig.getDataRange().getValues();
       if (rows.length > 1 && rows[1][0]) {
-        try {
-          data.config = JSON.parse(rows[1][0]);
-        } catch(err) {
-          data.config = {};
-        }
+        try { data.config = JSON.parse(rows[1][0]); }
+        catch(err) { data.config = {}; }
       }
     }
     
-    return ContentService.createTextOutput(JSON.stringify({ status: "success", data: data }))
+    var jsonOutput = JSON.stringify({ status: "success", data: data });
+    
+    // JSONP: se callback foi fornecido, envolve a resposta
+    if (callback) {
+      return ContentService.createTextOutput(callback + "(" + jsonOutput + ")")
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
+    return ContentService.createTextOutput(jsonOutput)
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -317,29 +317,14 @@ function doPost(e) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
   
   if (action === "save") {
-    // Salvar Fretes
-    if (data.fretes) {
-      saveRowsData(sheet, "Fretes", data.fretes);
-    }
+    if (data.fretes) { saveRowsData(sheet, "Fretes", data.fretes); }
+    if (data.motoristas) { saveRowsData(sheet, "Motoristas", data.motoristas); }
+    if (data.entregas) { saveRowsData(sheet, "Entregas", data.entregas); }
     
-    // Salvar Motoristas
-    if (data.motoristas) {
-      saveRowsData(sheet, "Motoristas", data.motoristas);
-    }
-    
-    // Salvar Entregas
-    if (data.entregas) {
-      saveRowsData(sheet, "Entregas", data.entregas);
-    }
-    
-    // Salvar Configuracoes
     if (data.config) {
       var sheetConfig = sheet.getSheetByName("Configuracoes");
-      if (!sheetConfig) {
-        sheetConfig = sheet.insertSheet("Configuracoes");
-      } else {
-        sheetConfig.clear();
-      }
+      if (!sheetConfig) { sheetConfig = sheet.insertSheet("Configuracoes"); }
+      else { sheetConfig.clear(); }
       sheetConfig.appendRow(["JSON_DATA"]);
       sheetConfig.appendRow([JSON.stringify(data.config)]);
     }
@@ -349,36 +334,24 @@ function doPost(e) {
   }
 }
 
-// Helper para ler dados da planilha e converter em Array de Objetos
 function getRowsData(sheet) {
   var rows = sheet.getDataRange().getValues();
   if (rows.length < 2) return [];
-  
   var headers = rows[0];
   var data = [];
-  
   for (var i = 1; i < rows.length; i++) {
     var obj = {};
-    for (var j = 0; j < headers.length; j++) {
-      obj[headers[j]] = rows[i][j];
-    }
+    for (var j = 0; j < headers.length; j++) { obj[headers[j]] = rows[i][j]; }
     data.push(obj);
   }
   return data;
 }
 
-// Helper para salvar dados na planilha
 function saveRowsData(ss, sheetName, dataList) {
   var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
-  } else {
-    sheet.clear();
-  }
-  
+  if (!sheet) { sheet = ss.insertSheet(sheetName); }
+  else { sheet.clear(); }
   if (dataList.length === 0) return;
-  
-  // Pegar cabeçalhos de todas as chaves únicas nos objetos
   var headers = [];
   dataList.forEach(function(item) {
     Object.keys(item).forEach(function(key) {
@@ -387,15 +360,10 @@ function saveRowsData(ss, sheetName, dataList) {
       }
     });
   });
-  
   sheet.appendRow(headers);
-  
   var values = dataList.map(function(item) {
-    return headers.map(function(h) {
-      return item[h] || "";
-    });
+    return headers.map(function(h) { return item[h] || ""; });
   });
-  
   if (values.length > 0) {
     sheet.getRange(2, 1, values.length, headers.length).setValues(values);
   }
