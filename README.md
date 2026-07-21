@@ -32,6 +32,23 @@ Sistema de controle de frete e cargas da Grande Goiânia. **100% no GitHub Pages
 ### Opção 3 - Sem planilha
 Deixa vazio. Dados ficam só no navegador. Use Exportar/Importar JSON.
 
+### 🔧 Pré-configurar via Variáveis de Ambiente (recomendado para vários dispositivos)
+
+Para não precisar digitar a URL do Apps Script e o ID da planilha em **cada aparelho**
+(celular, tablet, computador de funcionário), você pode embutir esses valores no build
+usando variáveis de ambiente públicas do Next.js:
+
+```env
+# .env.local (não versionado) — ou cadastre no provedor de hospedagem (Vercel/Netlify)
+NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY="https://script.google.com/macros/s/SUA_URL/exec"
+NEXT_PUBLIC_SPREADSHEET_ID="SEU_SPREADSHEET_ID"
+```
+
+Como começam com `NEXT_PUBLIC_`, elas são compiladas no build. Depois disso, **qualquer
+dispositivo** que abrir o site já carrega a conexão com a planilha automaticamente. Se um
+campo for preenchido manualmente no Admin, ele tem prioridade sobre a variável de ambiente.
+Veja o arquivo [`.env.example`](.env.example) na raiz do projeto.
+
 ## 🚀 Deploy no GitHub (100%)
 
 O projeto já está configurado para GitHub Pages com `output: export`.

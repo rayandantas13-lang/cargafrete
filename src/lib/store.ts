@@ -1,5 +1,5 @@
 // Store principal - usa localStorage + Google Sheets como banco de dados
-import { defaultConfig, type AppConfig } from "./config";
+import { defaultConfig, mergeConfigWithEnv, type AppConfig } from "./config";
 
 // Tipos
 export type TipoCadastro = "proprietario" | "funcionario";
@@ -111,7 +111,11 @@ function nowISO() {
 
 // CONFIG
 export function getConfig(): AppConfig {
-  return load<AppConfig>(KEYS.config, defaultConfig);
+  // Carrega o que estiver salvo no navegador e, para os campos de conexão com a
+  // planilha que estiverem em branco, aplica o fallback das variáveis de ambiente.
+  // Assim um dispositivo novo (localStorage vazio) já recebe a URL do Apps Script
+  // e o ID da planilha pré-configurados, sem necessidade de digitação manual.
+  return mergeConfigWithEnv(load<AppConfig>(KEYS.config, defaultConfig));
 }
 
 export function saveConfig(cfg: AppConfig) {

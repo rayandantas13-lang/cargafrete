@@ -42,7 +42,47 @@ export interface AppConfig {
   origemRota: string;
 }
 
-export const defaultConfig: AppConfig = {
+/**
+ * Valores de conexão com o Google Sheets lidos de Variáveis de Ambiente públicas
+ * do Next.js (`NEXT_PUBLIC_...`). Elas são embutidas no build, então qualquer
+ * dispositivo (celular, tablet, desktop) já abre o app com a planilha configurada,
+ * sem que o usuário precise digitar nada manualmente.
+ *
+ * Defina-as no provedor de hospedagem (Vercel, Netlify, etc.) ou em um `.env.local`.
+ */
+function readEnv(value: string | undefined): string {
+  return (value ?? "").trim();
+}
+
+export const googleSheetsEnvDefaults = {
+  /** URL do Google Apps Script (termina em /exec) OU API Key do Google Sheets. */
+  apiKey: readEnv(process.env.NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY),
+  /** ID da planilha do Google Sheets (trecho da URL da planilha). */
+  spreadsheetId: readEnv(process.env.NEXT_PUBLIC_SPREADSHEET_ID),
+};
+
+/**
+ * Mescla uma configuração com os padrões vindos das variáveis de ambiente.
+ * Para cada campo de conexão que estiver em branco na configuração local
+ * (ex.: `localStorage` vazio de um dispositivo novo), usamos o valor da
+ * variável de ambiente como fallback. Campos já preenchidos localmente são
+ * preservados, permitindo sobrescrever o padrão quando necessário.
+ */
+export function mergeConfigWithEnv(cfg: AppConfig): AppConfig {
+  const env = googleSheetsEnvDefaults;
+  return {
+    ...cfg,
+    googleSheets: {
+      ...cfg.googleSheets,
+      apiKey: cfg.googleSheets.apiKey?.trim() ? cfg.googleSheets.apiKey : env.apiKey,
+      spreadsheetId: cfg.googleSheets.spreadsheetId?.trim()
+        ? cfg.googleSheets.spreadsheetId
+        : env.spreadsheetId,
+    },
+  };
+}
+
+export const defaultConfig: AppConfig = mergeConfigWithEnv({
   tarifas: {
     valorTonelada: 15,
     valorEntregaGoiania: 25,
@@ -63,7 +103,7 @@ export const defaultConfig: AppConfig = {
   },
   senhaAdmin: "admin123",
   origemRota: "Goiânia, GO",
-};
+});
 
 export function calcularValorFrete(
   cfg: AppConfig,
