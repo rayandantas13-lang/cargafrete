@@ -3,18 +3,26 @@ import type { TabKey } from "@/app/page";
 interface SidebarProps {
   activeTab: TabKey;
   onChangeTab: (tab: TabKey) => void;
+  userRole: "admin" | "motorista";
+  userName: string;
+  onLogout: () => void;
 }
 
-const menuItems: { key: TabKey; label: string; icon: string }[] = [
+const menuItems: { key: TabKey; label: string; icon: string; adminOnly?: boolean }[] = [
   { key: "dashboard", label: "Dashboard", icon: "📊" },
-  { key: "novo", label: "Novo Frete", icon: "➕" },
+  { key: "novo", label: "Novo Frete", icon: "➕", adminOnly: true },
   { key: "fretes", label: "Fretes", icon: "🚛" },
   { key: "rotas", label: "Rotas & Mapas", icon: "🗺️" },
-  { key: "motoristas", label: "Motoristas", icon: "👤" },
-  { key: "admin", label: "Admin", icon: "⚙️" },
+  { key: "motoristas", label: "Motoristas", icon: "👤", adminOnly: true },
+  { key: "admin", label: "Admin", icon: "⚙️", adminOnly: true },
 ];
 
-export default function Sidebar({ activeTab, onChangeTab }: SidebarProps) {
+export default function Sidebar({ activeTab, onChangeTab, userRole, userName, onLogout }: SidebarProps) {
+  const itensVisiveis = menuItems.filter((item) => {
+    if (userRole === "motorista" && item.adminOnly) return false;
+    return true;
+  });
+
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-slate-900 text-white flex flex-col shadow-xl">
       <div className="p-6 border-b border-slate-800">
@@ -25,7 +33,7 @@ export default function Sidebar({ activeTab, onChangeTab }: SidebarProps) {
         <p className="text-xs text-slate-400 mt-1">Grande Goiânia</p>
       </div>
       <nav className="flex-1 p-4 space-y-1">
-        {menuItems.map((item) => (
+        {itensVisiveis.map((item) => (
           <button
             key={item.key}
             onClick={() => onChangeTab(item.key)}
@@ -40,9 +48,14 @@ export default function Sidebar({ activeTab, onChangeTab }: SidebarProps) {
           </button>
         ))}
       </nav>
-      <div className="p-4 border-t border-slate-800 text-xs text-slate-500">
-        <p>v1.0 • Controle de Fretes</p>
-        <p className="mt-1">© 2026</p>
+      <div className="p-4 border-t border-slate-800 bg-slate-950/50 space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <div>
+            <p className="font-semibold text-slate-200 truncate max-w-[130px]">{userName}</p>
+            <p className="text-slate-400 capitalize">{userRole}</p>
+          </div>
+          <button onClick={onLogout} className="bg-red-600/20 hover:bg-red-600/40 text-red-400 hover:text-red-300 px-2.5 py-1 rounded text-xs transition">Sair</button>
+        </div>
       </div>
     </aside>
   );

@@ -9,6 +9,7 @@ import DetalhesFrete from "@/components/DetalhesFrete";
 import Rotas from "@/components/Rotas";
 import Motoristas from "@/components/Motoristas";
 import Admin from "@/components/Admin";
+import Login from "@/components/Login";
 
 export type TabKey =
   | "dashboard"
@@ -19,28 +20,78 @@ export type TabKey =
   | "motoristas"
   | "admin";
 
+interface UserSession {
+  role: "admin" | "motorista";
+  id?: string;
+  nome: string;
+}
+
 export default function Home() {
+  const [session, setSession] = useState<UserSession | null>(null);
   const [tab, setTab] = useState<TabKey>("dashboard");
-  const [freteIdSelecionado, setFreteIdSelecionado] = useState<string | null>(
-    null
-  );
+  const [freteIdSelecionado, setFreteIdSelecionado] = useState<string | null>(null);
   const [freteRefresh, setFreteRefresh] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Carregar sessão do localStorage
+    try {
+      const raw = localStorage.getItem("fretecontrol_session");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.role) {
+          setSession(parsed);
+        }
+      }
+    } catch {
+      // ignore
+    }
+    setLoading(false);
+  }, []);
 
   // Persistir aba na URL
   useEffect(() => {
+    if (!session) return;
     const hash = window.location.hash.replace("#", "") as TabKey;
     if (hash && ["dashboard", "novo", "fretes", "rotas", "motoristas", "admin"].includes(hash)) {
-      setTab(hash);
+      if (session.role === "motorista" && ["novo", "motoristas", "admin"].includes(hash)) {
+        setTab("dashboard");
+      } else {
+        setTab(hash);
+      }
     }
     const handler = () => {
       const h = window.location.hash.replace("#", "") as TabKey;
-      if (h) setTab(h);
+      if (h) {
+        if (session.role === "motorista" && ["novo", "motoristas", "admin"].includes(h)) {
+          setTab("dashboard");
+        } else {
+          setTab(h);
+        }
+      }
     };
     window.addEventListener("hashchange", handler);
     return () => window.removeEventListener("hashchange", handler);
-  }, []);
+  }, [session]);
+
+  const handleLoginSuccess = (user: UserSession) => {
+    setSession(user);
+    localStorage.setItem("fretecontrol_session", JSON.stringify(user));
+    setTab("dashboard");
+    window.location.hash = "dashboard";
+  };
+
+  const handleLogout = () => {
+    setSession(null);
+    localStorage.removeItem("fretecontrol_session");
+    window.location.hash = "";
+  };
 
   const mudarTab = (novaTab: TabKey) => {
+    if (session?.role === "motorista" && ["novo", "motoristas", "admin"].includes(novaTab)) {
+      alert("Acesso restrito a administradores.");
+      return;
+    }
     setTab(novaTab);
     window.location.hash = novaTab;
   };
@@ -59,14 +110,28 @@ export default function Home() {
     setFreteRefresh((r) => r + 1);
   };
 
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen"><div className="text-slate-500">Carregando...</div></div>;
+  }
+
+  if (!session) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="flex min-h-screen">
-      <Sidebar activeTab={tab} onChangeTab={mudarTab} />
+      <Sidebar
+        activeTab={tab}
+        onChangeTab={mudarTab}
+        userRole={session.role}
+        userName={session.nome}
+        onLogout={handleLogout}
+      />
       <main className="flex-1 ml-64 p-8">
         {tab === "dashboard" && (
           <Dashboard onNavigate={mudarTab} refreshKey={freteRefresh} />
         )}
-        {tab === "novo" && (
+        {tab === "novo" && session.role === "admin" && (
           <NovoFrete
             onSaved={() => {
               atualizarFretes();
@@ -89,8 +154,8 @@ export default function Home() {
           />
         )}
         {tab === "rotas" && <Rotas refreshKey={freteRefresh} />}
-        {tab === "motoristas" && <Motoristas />}
-        {tab === "admin" && <Admin />}
+        {tab === "motoristas" && session.role === "admin" && <Motoristas />}
+        {tab === "admin" && session.role === "admin" && <Admin />}
       </main>
     </div>
   );
