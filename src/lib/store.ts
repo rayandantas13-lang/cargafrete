@@ -23,6 +23,10 @@ export interface Entrega {
   cidade?: string;
   regiao?: string;
   distanciaKm: number;
+  /** Quantidade de entregas atendidas nesta rota (uma rota pode agrupar várias entregas). */
+  numEntregas?: number;
+  /** Peso destinado a esta rota, em toneladas. */
+  toneladas?: number;
   ordem: number;
   concluida: boolean;
   observacoes?: string;
@@ -297,6 +301,8 @@ export function saveFrete(data: {
         cidade: (e as any).cidade || "",
         regiao: (e as any).regiao || frete.regiao,
         distanciaKm: (e as any).distanciaKm || 0,
+        numEntregas: (e as any).numEntregas || 1,
+        toneladas: (e as any).toneladas || 0,
         ordem: i,
         concluida: false,
         observacoes: (e as any).observacoes || "",

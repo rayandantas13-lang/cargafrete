@@ -70,7 +70,7 @@ export function calcularValorFrete(
   regiaoPrincipal: string,
   toneladas: number,
   numEntregas: number,
-  entregasItens?: { regiao?: string }[]
+  entregasItens?: { regiao?: string; numEntregas?: number }[]
 ) {
   const t = cfg.tarifas;
   const valorTonelada = t.valorTonelada * toneladas;
@@ -97,12 +97,18 @@ export function calcularValorFrete(
   };
 
   if (entregasItens && entregasItens.length > 0) {
-    entregasItens.forEach((item, index) => {
+    let entregasProcessadas = 0;
+    entregasItens.forEach((item) => {
       const reg = item.regiao || regiaoPrincipal;
-      if (index < limite) {
-        valorEntregas += getRate(reg);
-      } else {
-        valorExtra += t.valorExtraApos7Entregas;
+      // Uma rota pode representar uma ou várias entregas no mesmo município.
+      const quantidade = Math.max(0, item.numEntregas ?? 1);
+      for (let i = 0; i < quantidade; i += 1) {
+        if (entregasProcessadas < limite) {
+          valorEntregas += getRate(reg);
+        } else {
+          valorExtra += t.valorExtraApos7Entregas;
+        }
+        entregasProcessadas += 1;
       }
     });
   } else {

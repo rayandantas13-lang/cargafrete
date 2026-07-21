@@ -14,6 +14,8 @@ interface EntregaForm {
   bairro: string;
   cidade: string;
   regiao: string;
+  numEntregas: string;
+  toneladas: string;
   distanciaKm: number;
   observacoes: string;
 }
@@ -32,15 +34,24 @@ export default function NovoFrete({ onSaved }: NovoFreteProps) {
   const [placa, setPlaca] = useState("");
 
   const [oc, setOc] = useState("");
-  const [regiao, setRegiao] = useState("goiania");
-  const [toneladas, setToneladas] = useState("");
-  const [numEntregas, setNumEntregas] = useState("");
   const [cliente, setCliente] = useState("");
   const [dataCarregamento, setDataCarregamento] = useState("");
   const [dataEntrega, setDataEntrega] = useState("");
   const [observacoes, setObservacoes] = useState("");
 
-  const [entregas, setEntregas] = useState<EntregaForm[]>([]);
+  const novaEntrega = (): EntregaForm => ({
+    endereco: "",
+    bairro: "",
+    cidade: "",
+    regiao: "goiania",
+    numEntregas: "",
+    toneladas: "",
+    distanciaKm: 0,
+    observacoes: "",
+  });
+
+  // A primeira rota já fica pronta: só adicione outra quando realmente precisar.
+  const [entregas, setEntregas] = useState<EntregaForm[]>([novaEntrega()]);
   const [anexos, setAnexos] = useState<AnexoForm[]>([]);
 
   const cfg = getConfig();
@@ -59,17 +70,21 @@ export default function NovoFrete({ onSaved }: NovoFreteProps) {
     }
   };
 
-  const calculo = (() => {
-    const tons = parseFloat(toneladas) || 0;
-    const nEnt = parseInt(numEntregas) || entregas.length || 0;
-    return calcularValorFrete(cfg, regiao, tons, nEnt, entregas);
-  })();
+  const totalToneladas = entregas.reduce((total, entrega) => total + (parseFloat(entrega.toneladas) || 0), 0);
+  const totalEntregas = entregas.reduce((total, entrega) => total + (parseInt(entrega.numEntregas, 10) || 0), 0);
+  const regiaoPrincipal = entregas[0]?.regiao || "goiania";
+  const calculo = calcularValorFrete(
+    cfg,
+    regiaoPrincipal,
+    totalToneladas,
+    totalEntregas,
+    entregas.map((entrega) => ({
+      ...entrega,
+      numEntregas: parseInt(entrega.numEntregas, 10) || 0,
+    })),
+  );
 
-  const addEntrega = () => {
-    const novaLista = [...entregas, { endereco: "", bairro: "", cidade: "", regiao: "goiania", distanciaKm: 0, observacoes: "" }];
-    setEntregas(novaLista);
-    setNumEntregas(String(novaLista.length));
-  };
+  const addEntrega = () => setEntregas([...entregas, novaEntrega()]);
 
   const updateEntrega = (i: number, field: keyof EntregaForm, value: any) => {
     const novas = [...entregas];
@@ -78,9 +93,11 @@ export default function NovoFrete({ onSaved }: NovoFreteProps) {
   };
 
   const removeEntrega = (i: number) => {
-    const novaLista = entregas.filter((_, idx) => idx !== i);
-    setEntregas(novaLista);
-    setNumEntregas(String(novaLista.length));
+    if (entregas.length === 1) {
+      setEntregas([novaEntrega()]);
+      return;
+    }
+    setEntregas(entregas.filter((_, idx) => idx !== i));
   };
 
   const ordenarPorDistancia = () => setEntregas([...entregas].sort((a, b) => a.distanciaKm - b.distanciaKm));
@@ -105,7 +122,10 @@ export default function NovoFrete({ onSaved }: NovoFreteProps) {
   const removeAnexo = (i: number) => setAnexos(anexos.filter((_, idx) => idx !== i));
 
   const handleSubmit = () => {
-    if (!oc || !regiao || !toneladas) { alert("Preencha OC, região principal e toneladas"); return; }
+    if (!oc || totalToneladas <= 0 || totalEntregas <= 0) {
+      alert("Preencha a OC e informe toneladas e número de entregas em pelo menos uma rota");
+      return;
+    }
     saveFrete({
       oc,
       motoristaId: motoristaId || null,
@@ -114,16 +134,20 @@ export default function NovoFrete({ onSaved }: NovoFreteProps) {
       dataCarregamento: dataCarregamento || null,
       dataEntrega: dataEntrega || null,
       cliente: cliente || null,
-      regiao,
-      toneladas: parseFloat(toneladas) || 0,
-      numEntregas: parseInt(numEntregas) || entregas.length || 0,
+      regiao: regiaoPrincipal,
+      toneladas: totalToneladas,
+      numEntregas: totalEntregas,
       valorTonelada: calculo.valorTonelada,
       valorEntregas: calculo.valorEntregas,
       valorExtraEntregas: calculo.valorExtraEntregas,
       valorTotal: calculo.valorTotal,
       observacoes,
       status: "pendente",
-      entregas: entregas.filter((e) => e.endereco.trim()),
+      entregas: entregas.filter((e) => e.endereco.trim()).map((e) => ({
+        ...e,
+        numEntregas: parseInt(e.numEntregas, 10) || 0,
+        toneladas: parseFloat(e.toneladas) || 0,
+      })),
       anexos,
     });
     onSaved();
@@ -163,17 +187,16 @@ export default function NovoFrete({ onSaved }: NovoFreteProps) {
 
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 space-y-4">
         <h2 className="font-semibold text-lg border-b pb-2">💰 Cálculo do Frete</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div><label className="block text-sm font-medium text-slate-700 mb-1">Região Principal *</label><select value={regiao} onChange={(e) => setRegiao(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2">{regioes.map((r) => (<option key={r.value} value={r.value}>{r.label}</option>))}</select></div>
-          <div><label className="block text-sm font-medium text-slate-700 mb-1">Toneladas *</label><input type="number" step="0.01" value={toneladas} onChange={(e) => setToneladas(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="0.00" /></div>
-          <div><label className="block text-sm font-medium text-slate-700 mb-1">Nº de Entregas (calculado pelas entregas abaixo)</label><input type="number" value={numEntregas || entregas.length} onChange={(e) => setNumEntregas(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="0" /></div>
+        <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600">
+          Informe <strong>município, número de entregas e toneladas dentro de cada rota</strong> abaixo. O total do frete é somado automaticamente.
         </div>
 
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 space-y-2">
           <h3 className="font-semibold text-blue-900 mb-3">💡 Detalhamento do Valor</h3>
           <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            <span className="text-slate-600">Valor por tonelada (R$ {cfg.tarifas.valorTonelada.toFixed(2)} × {toneladas || 0}t):</span><span className="font-medium text-right">R$ {calculo.valorTonelada.toFixed(2)}</span>
-            <span className="text-slate-600">Soma das entregas (considerando regiões individuais e limite de {cfg.tarifas.limiteEntregas}):</span><span className="font-medium text-right">R$ {calculo.valorEntregas.toFixed(2)}</span>
+            <span className="text-slate-600">Valor por tonelada (R$ {cfg.tarifas.valorTonelada.toFixed(2)} × {totalToneladas.toFixed(2)}t):</span><span className="font-medium text-right">R$ {calculo.valorTonelada.toFixed(2)}</span>
+            <span className="text-slate-600">Total informado ({totalEntregas} entrega(s) em {entregas.filter((e) => e.endereco.trim()).length} rota(s)):</span><span className="font-medium text-right">{totalEntregas} entrega(s)</span>
+            <span className="text-slate-600">Soma das entregas (por município, com limite de {cfg.tarifas.limiteEntregas}):</span><span className="font-medium text-right">R$ {calculo.valorEntregas.toFixed(2)}</span>
             {calculo.valorExtraEntregas > 0 && (<><span className="text-slate-600">Entregas extras (acima de {cfg.tarifas.limiteEntregas} - R$ {cfg.tarifas.valorExtraApos7Entregas.toFixed(2)} cada):</span><span className="font-medium text-right">R$ {calculo.valorExtraEntregas.toFixed(2)}</span></>)}
             <div className="col-span-2 border-t border-blue-200 my-2" />
             <span className="font-bold text-blue-900 text-base">TOTAL DO FRETE:</span><span className="font-bold text-blue-900 text-lg text-right">R$ {calculo.valorTotal.toFixed(2)}</span>
@@ -184,8 +207,8 @@ export default function NovoFrete({ onSaved }: NovoFreteProps) {
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 space-y-4">
         <div className="flex items-center justify-between border-b pb-2">
           <div>
-            <h2 className="font-semibold text-lg">📍 Locais de Entrega (Misto: Goiânia e Outras Cidades)</h2>
-            <p className="text-xs text-slate-500">Defina a cidade/região de cada entrega para o cálculo somado correto</p>
+            <h2 className="font-semibold text-lg">📍 Rotas / Locais de Entrega</h2>
+            <p className="text-xs text-slate-500">Em cada rota, informe o endereço, município, nº de entregas e peso. Adicione outra rota somente se precisar.</p>
           </div>
           <div className="flex gap-2">
             <button onClick={ordenarPorDistancia} className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg">⬇⬆ Ordenar por distância</button>
@@ -196,17 +219,15 @@ export default function NovoFrete({ onSaved }: NovoFreteProps) {
         <div className="space-y-3">
           {entregas.map((e, i) => (
             <div key={i} className="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3">
-              <div className="flex items-center justify-between"><span className="text-sm font-semibold text-slate-700">Entrega #{i + 1} {i >= cfg.tarifas.limiteEntregas && <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded ml-2">Extra (R$ {cfg.tarifas.valorExtraApos7Entregas})</span>}</span><button onClick={() => removeEntrega(i)} className="text-red-600 hover:text-red-800 text-sm">Remover</button></div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="md:col-span-2"><input value={e.endereco} onChange={(ev) => updateEntrega(i, "endereco", ev.target.value)} placeholder="Endereço completo" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
-                <div><input value={e.bairro} onChange={(ev) => updateEntrega(i, "bairro", ev.target.value)} placeholder="Bairro" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
-                <div>
-                  <select value={e.regiao || "goiania"} onChange={(ev) => updateEntrega(i, "regiao", ev.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white font-medium text-blue-900">
-                    {regioes.map((r) => (<option key={r.value} value={r.value}>{r.label}</option>))}
-                  </select>
-                </div>
-                <div><input type="number" step="0.1" value={e.distanciaKm} onChange={(ev) => updateEntrega(i, "distanciaKm", parseFloat(ev.target.value) || 0)} placeholder="Distância (km)" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
-                <div className="md:col-span-3"><input value={e.observacoes} onChange={(ev) => updateEntrega(i, "observacoes", ev.target.value)} placeholder="Observações (referência...)" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
+              <div className="flex items-center justify-between"><span className="text-sm font-semibold text-slate-700">Rota #{i + 1}</span><button onClick={() => removeEntrega(i)} className="text-red-600 hover:text-red-800 text-sm">Remover rota</button></div>
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                <div className="md:col-span-3"><label className="block text-xs font-medium text-slate-600 mb-1">Endereço *</label><input value={e.endereco} onChange={(ev) => updateEntrega(i, "endereco", ev.target.value)} placeholder="Rua, número e complemento" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
+                <div className="md:col-span-2"><label className="block text-xs font-medium text-slate-600 mb-1">Bairro</label><input value={e.bairro} onChange={(ev) => updateEntrega(i, "bairro", ev.target.value)} placeholder="Bairro" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
+                <div><label className="block text-xs font-medium text-slate-600 mb-1">Município *</label><select value={e.regiao || "goiania"} onChange={(ev) => updateEntrega(i, "regiao", ev.target.value)} className="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm bg-white font-medium text-blue-900">{regioes.map((r) => (<option key={r.value} value={r.value}>{r.label.replace(" (capital)", "")}</option>))}</select></div>
+                <div><label className="block text-xs font-medium text-slate-600 mb-1">Nº entregas *</label><input type="number" min="1" value={e.numEntregas} onChange={(ev) => updateEntrega(i, "numEntregas", ev.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
+                <div><label className="block text-xs font-medium text-slate-600 mb-1">Toneladas *</label><input type="number" min="0" step="0.01" value={e.toneladas} onChange={(ev) => updateEntrega(i, "toneladas", ev.target.value)} placeholder="0,00" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
+                <div><label className="block text-xs font-medium text-slate-600 mb-1">Distância (km)</label><input type="number" step="0.1" value={e.distanciaKm} onChange={(ev) => updateEntrega(i, "distanciaKm", parseFloat(ev.target.value) || 0)} placeholder="Opcional" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
+                <div className="md:col-span-3"><label className="block text-xs font-medium text-slate-600 mb-1">Observações</label><input value={e.observacoes} onChange={(ev) => updateEntrega(i, "observacoes", ev.target.value)} placeholder="Referência, contato..." className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
               </div>
             </div>
           ))}
