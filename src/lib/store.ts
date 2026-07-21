@@ -460,13 +460,14 @@ export async function syncToSheets() {
   // 1. Se apiKey na verdade for uma URL de Apps Script (começa com https://script.google.com), faz POST
   if (gs.apiKey && gs.apiKey.startsWith("https://script.google.com")) {
     try {
-      await fetch(gs.apiKey, {
+      const res = await fetch(gs.apiKey, {
         method: "POST",
-        mode: "no-cors",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "save", data }),
       });
-      console.log("Sincronizado com Apps Script");
+      if (res.ok) {
+        console.log("Sincronizado com Apps Script");
+      }
       return { ok: true, method: "apps_script" };
     } catch (e) {
       console.warn("Erro sync Apps Script", e);

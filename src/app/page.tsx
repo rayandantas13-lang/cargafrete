@@ -62,7 +62,21 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    // Carregar sessão do localStorage
+    // Carregar sessão do localStorage e adicionar listener para mudanças no storage
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key && event.key.startsWith("fretecontrol_")) {
+        // Se a mudança foi em alguma chave do nosso app, tenta sincronizar novamente
+        console.log("Storage event detected, re-syncing from sheets...");
+        syncFromSheets().then((result) => {
+          if (result.ok) {
+            setFreteRefresh((r) => r + 1);
+          }
+        });
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
     try {
       const raw = localStorage.getItem("fretecontrol_session");
       if (raw) {
@@ -75,6 +89,25 @@ export default function Home() {
       // ignore
     }
     setLoading(false);
+
+    // Polling para sincronização em tempo real entre navegadores diferentes
+    const interval = setInterval(() => {
+      const cfg = getConfig();
+      if (cfg.googleSheets.apiKey && cfg.googleSheets.apiKey.startsWith("https://script.google.com")) {
+        syncFromSheets().then((result) => {
+          if (result.ok && result.count !== undefined) {
+            // Se algo mudou, o store já salvou no localStorage, 
+            // mas precisamos avisar os componentes para recarregar
+            setFreteRefresh((r) => r + 1);
+          }
+        });
+      }
+    }, 30000); // Sincroniza a cada 30 segundos
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
   }, []);
 
   // Persistir aba na URL
