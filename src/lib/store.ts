@@ -124,8 +124,7 @@ export function getConfig(): AppConfig {
 
 export function saveConfig(cfg: AppConfig) {
   save(KEYS.config, cfg);
-  // Se tiver Apps Script URL configurado como apiKey (hack temporário) ou spreadsheetId, tenta sync
-  // O sync real é feito via saveToSheets
+  queueSheetsSync();
 }
 
 // Motoristas
@@ -498,12 +497,26 @@ export async function syncFromSheets(): Promise<{ ok: boolean; count?: number; e
         const hasAny =
           (Array.isArray(json.data.fretes) && json.data.fretes.length > 0) ||
           (Array.isArray(json.data.motoristas) && json.data.motoristas.length > 0) ||
-          (Array.isArray(json.data.entregas) && json.data.entregas.length > 0);
+          (Array.isArray(json.data.entregas) && json.data.entregas.length > 0) ||
+          (json.data.config && typeof json.data.config === "object");
 
         if (hasAny) {
           if (Array.isArray(json.data.fretes)) save(KEYS.fretes, json.data.fretes);
           if (Array.isArray(json.data.motoristas)) save(KEYS.motoristas, json.data.motoristas);
           if (Array.isArray(json.data.entregas)) save(KEYS.entregas, json.data.entregas);
+          
+          if (json.data.config && typeof json.data.config === "object") {
+            const currentConfig = getConfig();
+            const mergedConfig = {
+              ...json.data.config,
+              googleSheets: {
+                ...json.data.config.googleSheets,
+                apiKey: currentConfig.googleSheets.apiKey || json.data.config.googleSheets?.apiKey || "",
+                spreadsheetId: currentConfig.googleSheets.spreadsheetId || json.data.config.googleSheets?.spreadsheetId || "",
+              }
+            };
+            save(KEYS.config, mergedConfig);
+          }
         }
         return { ok: true, count: Array.isArray(json.data.fretes) ? json.data.fretes.length : 0 };
       }
@@ -518,6 +531,7 @@ export async function syncFromSheets(): Promise<{ ok: boolean; count?: number; e
       // Tenta ler as abas Fretes, Motoristas
       const base = `https://sheets.googleapis.com/v4/spreadsheets/${gs.spreadsheetId}/values`;
       
+      let count = 0;
       const fretesRes = await fetch(`${base}/${encodeURIComponent(gs.sheetFretes || "Fretes")}?key=${gs.apiKey}`);
       if (fretesRes.ok) {
         const fretesData = await fretesRes.json();
@@ -553,12 +567,40 @@ export async function syncFromSheets(): Promise<{ ok: boolean; count?: number; e
             };
           });
           save(KEYS.fretes, fretes);
-          return { ok: true, count: fretes.length };
+          count = fretes.length;
         }
       } else {
         const err = await fretesRes.text();
         return { ok: false, error: `Sheets API erro: ${fretesRes.status} ${err}` };
       }
+
+      // Tenta ler a aba Configuracoes se houver no Modo 2
+      try {
+        const configRes = await fetch(`${base}/Configuracoes?key=${gs.apiKey}`);
+        if (configRes.ok) {
+          const configData = await configRes.json();
+          const rows = configData.values || [];
+          if (rows.length > 1 && rows[1][0]) {
+            const parsedConfig = JSON.parse(rows[1][0]);
+            if (parsedConfig && typeof parsedConfig === "object") {
+              const currentConfig = getConfig();
+              const mergedConfig = {
+                ...parsedConfig,
+                googleSheets: {
+                  ...parsedConfig.googleSheets,
+                  apiKey: currentConfig.googleSheets.apiKey || parsedConfig.googleSheets.apiKey || "",
+                  spreadsheetId: currentConfig.googleSheets.spreadsheetId || parsedConfig.googleSheets.spreadsheetId || "",
+                }
+              };
+              save(KEYS.config, mergedConfig);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Erro ao ler aba Configuracoes", err);
+      }
+
+      return { ok: true, count };
     } catch (e: any) {
       return { ok: false, error: e.message };
     }
