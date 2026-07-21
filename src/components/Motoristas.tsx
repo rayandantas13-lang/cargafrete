@@ -47,12 +47,12 @@ export default function Motoristas() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Motoristas</h1>
-          <p className="text-slate-500 mt-1">Gerencie os motoristas (Acesso exclusivo para administradores)</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Motoristas</h1>
+          <p className="text-slate-500 text-sm mt-1">Gerencie os motoristas (Acesso exclusivo para administradores)</p>
         </div>
-        <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">{showForm ? "✕ Cancelar" : "+ Novo Motorista"}</button>
+        <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium w-full sm:w-auto text-center transition-all">{showForm ? "✕ Cancelar" : "+ Novo Motorista"}</button>
       </div>
 
       {novoMotoristaCriado && (
@@ -108,7 +108,67 @@ export default function Motoristas() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* Mobile Card List (Visible on mobile/tablet, hidden on desktop) */}
+      <div className="md:hidden space-y-4">
+        {motoristas.length === 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center text-slate-400">
+            Nenhum cadastro encontrado
+          </div>
+        )}
+        {motoristas.map((m) => {
+          const proprietarioNome = m.proprietarioId ? motoristas.find((p) => p.id === m.proprietarioId)?.nome || "-" : "Próprio";
+          return (
+            <div key={m.id} className="bg-white rounded-xl shadow-md border border-slate-100 p-4 space-y-3 hover:border-blue-300 transition-colors">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div>
+                  <span className="font-bold text-slate-900 text-base">{m.nome}</span>
+                  <span className="text-xs text-slate-500 block mt-0.5">{(m.tipo || "proprietario") === "proprietario" ? "👑 Proprietário" : "👤 Funcionário"}</span>
+                </div>
+                <span className="font-mono font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-lg text-xs">
+                  {m.placa}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                <div>
+                  <span className="text-xs text-slate-400 font-medium block">Vínculo / Resp.</span>
+                  <span className="font-medium text-slate-700">{proprietarioNome}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-medium block">Telefone</span>
+                  <span className="font-medium text-slate-700">{m.telefone || "-"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-medium block">Veículo</span>
+                  <span className="font-medium text-slate-700">{m.veiculo || "-"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 font-medium block">CNH</span>
+                  <span className="font-medium text-slate-700">{m.cnh || "-"}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2.5 border-t border-slate-100">
+                <button
+                  onClick={() => editar(m)}
+                  className="flex-1 sm:flex-none text-center bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-2 rounded-lg text-xs font-semibold transition"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => remover(m.id)}
+                  className="flex-1 sm:flex-none text-center bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg text-xs font-semibold transition"
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop Table (Hidden on mobile) */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">

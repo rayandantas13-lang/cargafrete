@@ -31,6 +31,7 @@ export default function Home() {
   const [freteIdSelecionado, setFreteIdSelecionado] = useState<string | null>(null);
   const [freteRefresh, setFreteRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     // Carregar sessão do localStorage
@@ -93,6 +94,7 @@ export default function Home() {
     }
     setTab(novaTab);
     window.location.hash = novaTab;
+    setSidebarOpen(false);
   };
 
   const abrirDetalhe = (id: string) => {
@@ -118,15 +120,47 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
+      {/* Top Header Mobile */}
+      <div className="md:hidden flex items-center justify-between bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-1.5 hover:bg-slate-800 rounded-lg text-white transition-colors"
+            aria-label="Abrir Menu"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <span className="font-bold flex items-center gap-1.5">
+            <span>🚚</span>
+            <span className="text-lg">FreteControl</span>
+          </span>
+        </div>
+        <div className="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded capitalize font-medium">
+          {session.role}
+        </div>
+      </div>
+
+      {/* Overlay Backdrop for Mobile Sidebar */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-slate-900/60 z-40 md:hidden transition-opacity"
+        />
+      )}
+
       <Sidebar
         activeTab={tab}
         onChangeTab={mudarTab}
         userRole={session.role}
         userName={session.nome}
         onLogout={handleLogout}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
-      <main className="flex-1 ml-64 p-8">
+      <main className="flex-1 ml-0 md:ml-64 p-4 md:p-8">
         {tab === "dashboard" && (
           <Dashboard onNavigate={mudarTab} refreshKey={freteRefresh} sessao={session} />
         )}

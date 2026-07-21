@@ -51,14 +51,14 @@ export default function ListaFretes({ refreshKey, onOpenDetail, onDeleted, sessa
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-200 flex flex-wrap gap-3">
-        <input value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="🔍 Buscar por OC, motorista, placa..." className="flex-1 min-w-[200px] border border-slate-300 rounded-lg px-3 py-2 text-sm" />
-        <select value={filtroRegiao} onChange={(e) => setFiltroRegiao(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+        <input value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="🔍 Buscar por OC, motorista, placa..." className="flex-1 min-w-[200px] border border-slate-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto" />
+        <select value={filtroRegiao} onChange={(e) => setFiltroRegiao(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto">
           <option value="">Todas as regiões</option>
           {regioes.map((r) => (
             <option key={r.value} value={r.value}>{r.label}</option>
           ))}
         </select>
-        <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+        <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto">
           <option value="">Todos os status</option>
           <option value="pendente">Pendente</option>
           <option value="em_rota">Em rota</option>
@@ -67,7 +67,80 @@ export default function ListaFretes({ refreshKey, onOpenDetail, onDeleted, sessa
         </select>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* Mobile Card List (Visible on mobile/tablet, hidden on desktop) */}
+      <div className="md:hidden space-y-4">
+        {fretesFiltrados.length === 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center text-slate-400">
+            Nenhum frete encontrado
+          </div>
+        )}
+        {fretesFiltrados.map((f) => (
+          <div key={f.id} className="bg-white rounded-xl shadow-md border border-slate-100 p-4 space-y-3 relative hover:border-blue-300 transition-colors">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div>
+                <span className="font-bold text-slate-950 text-base">OC {f.oc}</span>
+                <span className="text-xs text-slate-400 block mt-0.5">{f.dataCarregamento || "Sem data"}</span>
+              </div>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                f.status === "concluido"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : f.status === "em_rota"
+                  ? "bg-blue-100 text-blue-700"
+                  : f.status === "cancelado"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-yellow-100 text-yellow-700"
+              }`}>
+                {f.status}
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+              <div className="col-span-2">
+                <span className="text-xs text-slate-400 font-medium block">Cliente</span>
+                <span className="font-medium text-slate-850">{f.cliente || "-"}</span>
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 font-medium block">Motorista</span>
+                <span className="font-medium text-slate-800">{f.motoristaNome || "-"}</span>
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 font-medium block">Placa</span>
+                <span className="font-mono text-slate-700 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded text-xs inline-block mt-0.5">{f.placa || "-"}</span>
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 font-medium block">Região</span>
+                <span className="text-slate-800 font-medium">{regiaoLabel(f.regiao)}</span>
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 font-medium block">Resumo</span>
+                <span className="text-slate-800 font-medium">{f.toneladas}t • {f.numEntregas} ent.</span>
+              </div>
+              <div className="col-span-2 bg-blue-50/50 p-2 rounded-lg border border-blue-100/50 flex justify-between items-center mt-1">
+                <span className="text-xs text-blue-800 font-medium">Valor Total</span>
+                <span className="font-bold text-blue-900 text-base">R$ {(f.valorTotal || 0).toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2.5 border-t border-slate-100">
+              <button
+                onClick={() => onOpenDetail(f.id)}
+                className="flex-1 sm:flex-none text-center bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-2 rounded-lg text-xs font-semibold transition"
+              >
+                Detalhes
+              </button>
+              <button
+                onClick={() => deletar(f.id)}
+                className="flex-1 sm:flex-none text-center bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg text-xs font-semibold transition"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table (Hidden on mobile) */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">

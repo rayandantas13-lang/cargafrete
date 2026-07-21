@@ -280,14 +280,14 @@ export default function NovoFrete({ onSaved, sessao }: NovoFreteProps) {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 space-y-4">
-        <div className="flex items-center justify-between border-b pb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b pb-2 gap-3">
           <div>
             <h2 className="font-semibold text-lg">📍 Rotas / Locais de Entrega</h2>
             <p className="text-xs text-slate-500">Em cada rota, informe o endereço, município, nº de entregas e peso. Adicione outra rota somente se precisar.</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={ordenarPorDistancia} className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg">⬇⬆ Ordenar por distância</button>
-            <button onClick={addEntrega} className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg">+ Adicionar entrega</button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button onClick={ordenarPorDistancia} className="flex-1 sm:flex-none text-xs sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-center font-medium">⬇⬆ Ordenar</button>
+            <button onClick={addEntrega} className="flex-1 sm:flex-none text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-center font-medium">+ Adicionar entrega</button>
           </div>
         </div>
         {entregas.length === 0 && <p className="text-sm text-slate-400">Nenhum local de entrega adicionado.</p>}
@@ -331,7 +331,7 @@ export default function NovoFrete({ onSaved, sessao }: NovoFreteProps) {
       </div>
 
       <div className="flex justify-end gap-3 pb-8">
-        <button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium shadow-sm transition">💾 Salvar Frete</button>
+        <button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium shadow-sm transition w-full sm:w-auto text-center">💾 Salvar Frete</button>
       </div>
     </div>
   );

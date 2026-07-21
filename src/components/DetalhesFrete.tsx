@@ -68,14 +68,14 @@ export default function DetalhesFrete({ freteId, onBack, onSaved }: DetalhesFret
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="text-slate-600 hover:text-slate-900 text-sm">← Voltar</button>
-          <h1 className="text-3xl font-bold">Frete {frete.oc}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Frete {frete.oc}</h1>
         </div>
-        <div className="flex gap-2">
-          <button onClick={gerarLinkMaps} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium">🗺️ Abrir rota no Google Maps</button>
-          <select value={frete.status || "pendente"} onChange={(e) => mudarStatus(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button onClick={gerarLinkMaps} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium w-full sm:w-auto text-center">🗺️ Rota no Google Maps</button>
+          <select value={frete.status || "pendente"} onChange={(e) => mudarStatus(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto font-medium">
             <option value="pendente">Pendente</option>
             <option value="em_rota">Em rota</option>
             <option value="concluido">Concluído</option>
