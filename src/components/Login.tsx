@@ -131,7 +131,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         </form>
 
         <div className="text-xs text-slate-400 text-center border-t pt-4">
-          {tipo === "admin" ? <p>Senha padrão: <code className="bg-slate-100 px-2 py-0.5 rounded text-slate-700">admin123</code></p> : <p>O primeiro acesso utiliza a senha temporária fornecida pelo administrador.</p>}
+          {tipo === "admin" ? <p>Bem-Vindo de volta - <code className="bg-slate-100 px-2 py-0.5 rounded text-slate-700">Admin</code></p> : <p>O primeiro acesso utiliza a senha temporária fornecida pelo administrador.</p>}
         </div>
       </div>
     </div>
