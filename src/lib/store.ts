@@ -1,5 +1,5 @@
 // Store principal - usa localStorage + Google Sheets como banco de dados
-import { defaultConfig, type AppConfig } from "./config";
+import { defaultConfig, mergeConfigWithEnv, type AppConfig } from "./config";
 
 // Tipos
 export type TipoCadastro = "proprietario" | "funcionario";
@@ -50,6 +50,10 @@ export interface Anexo {
 export interface Frete {
   id: string;
   oc: string;
+  /** Tipo do frete: "padrao" (cálculo automático) ou "combinado" (valor negociado). */
+  tipoFrete?: "padrao" | "combinado";
+  /** Valor total negociado manualmente quando tipoFrete === "combinado". */
+  valorCombinado?: number;
   motoristaId?: string | null;
   motoristaNome?: string | null;
   placa?: string | null;
@@ -111,7 +115,11 @@ function nowISO() {
 
 // CONFIG
 export function getConfig(): AppConfig {
-  return load<AppConfig>(KEYS.config, defaultConfig);
+  // Carrega o que estiver salvo no navegador e, para os campos de conexão com a
+  // planilha que estiverem em branco, aplica o fallback das variáveis de ambiente.
+  // Assim um dispositivo novo (localStorage vazio) já recebe a URL do Apps Script
+  // e o ID da planilha pré-configurados, sem necessidade de digitação manual.
+  return mergeConfigWithEnv(load<AppConfig>(KEYS.config, defaultConfig));
 }
 
 export function saveConfig(cfg: AppConfig) {
@@ -220,6 +228,8 @@ export function getFreteById(id: string): (Frete & { entregas: Entrega[]; anexos
 export function saveFrete(data: {
   id?: string;
   oc: string;
+  tipoFrete?: "padrao" | "combinado";
+  valorCombinado?: number;
   motoristaId?: string | null;
   motoristaNome?: string | null;
   placa?: string | null;
@@ -247,6 +257,8 @@ export function saveFrete(data: {
       frete = {
         ...fretes[idx],
         oc: data.oc,
+        tipoFrete: data.tipoFrete || "padrao",
+        valorCombinado: data.valorCombinado,
         motoristaId: data.motoristaId ?? null,
         motoristaNome: data.motoristaNome ?? null,
         placa: data.placa ?? null,
@@ -270,6 +282,8 @@ export function saveFrete(data: {
       frete = {
         id: data.id,
         oc: data.oc,
+        tipoFrete: data.tipoFrete || "padrao",
+        valorCombinado: data.valorCombinado,
         motoristaId: data.motoristaId ?? null,
         motoristaNome: data.motoristaNome ?? null,
         placa: data.placa ?? null,
@@ -294,6 +308,8 @@ export function saveFrete(data: {
     frete = {
       id: uid(),
       oc: data.oc,
+      tipoFrete: data.tipoFrete || "padrao",
+      valorCombinado: data.valorCombinado,
       motoristaId: data.motoristaId ?? null,
       motoristaNome: data.motoristaNome ?? null,
       placa: data.placa ?? null,

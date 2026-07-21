@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import type { TabKey } from "@/app/page";
 import type { Frete } from "@/lib/store";
-import { getFretesVisiveis, type SessaoAcesso } from "@/lib/store";
-import { regioes } from "@/lib/config";
+import { getFretesVisiveis, getConfig, type SessaoAcesso } from "@/lib/store";
+import { getMunicipios } from "@/lib/config";
 
 interface DashboardProps {
   onNavigate: (tab: TabKey) => void;
@@ -24,7 +24,7 @@ export default function Dashboard({ onNavigate, refreshKey, sessao }: DashboardP
   const pendentes = fretes.filter((f) => f.status === "pendente").length;
   const concluidos = fretes.filter((f) => f.status === "concluido").length;
 
-  const fretesPorRegiao = regioes.map((r) => ({
+  const fretesPorRegiao = getMunicipios(getConfig()).map((r) => ({
     label: r.label,
     value: r.value,
     count: fretes.filter((f) => f.regiao === r.value).length,

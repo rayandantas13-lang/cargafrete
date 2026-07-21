@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import type { Motorista, SessaoAcesso } from "@/lib/store";
 import { getMotoristas, saveFrete, getConfig } from "@/lib/store";
-import { regioes, calcularValorFrete } from "@/lib/config";
+import { getMunicipios, getMunicipio, calcularValorFrete } from "@/lib/config";
 
 interface NovoFreteProps {
   onSaved: () => void;
@@ -39,6 +39,8 @@ export default function NovoFrete({ onSaved, sessao }: NovoFreteProps) {
   const [dataCarregamento, setDataCarregamento] = useState("");
   const [dataEntrega, setDataEntrega] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [tipoFrete, setTipoFrete] = useState<"padrao" | "combinado">("padrao");
+  const [valorCombinado, setValorCombinado] = useState("");
 
   const novaEntrega = (): EntregaForm => ({
     endereco: "",
@@ -104,6 +106,12 @@ export default function NovoFrete({ onSaved, sessao }: NovoFreteProps) {
     })),
   );
 
+  const municipios = getMunicipios(cfg);
+  const municipioPrincipal = getMunicipio(cfg, regiaoPrincipal);
+  const ehCombinado = tipoFrete === "combinado";
+  const valorCombinadoNum = parseFloat(valorCombinado) || 0;
+  const totalFinal = ehCombinado ? valorCombinadoNum : calculo.valorTotal;
+
   const addEntrega = () => setEntregas([...entregas, novaEntrega()]);
 
   const updateEntrega = (i: number, field: keyof EntregaForm, value: any) => {
@@ -142,8 +150,17 @@ export default function NovoFrete({ onSaved, sessao }: NovoFreteProps) {
   const removeAnexo = (i: number) => setAnexos(anexos.filter((_, idx) => idx !== i));
 
   const handleSubmit = () => {
-    if (!oc || totalToneladas <= 0 || totalEntregas <= 0) {
-      alert("Preencha a OC e informe toneladas e número de entregas em pelo menos uma rota");
+    if (!oc) {
+      alert("Preencha a OC (Ordem de Carregamento).");
+      return;
+    }
+    if (ehCombinado) {
+      if (valorCombinadoNum <= 0) {
+        alert("Informe o valor total combinado.");
+        return;
+      }
+    } else if (totalToneladas <= 0 || totalEntregas <= 0) {
+      alert("Informe toneladas e número de entregas em pelo menos uma rota.");
       return;
     }
 
@@ -180,6 +197,8 @@ export default function NovoFrete({ onSaved, sessao }: NovoFreteProps) {
 
     saveFrete({
       oc,
+      tipoFrete,
+      valorCombinado: ehCombinado ? valorCombinadoNum : undefined,
       motoristaId: motoristaId || null,
       motoristaNome: motoristaNome || null,
       placa: placa || null,
@@ -189,10 +208,10 @@ export default function NovoFrete({ onSaved, sessao }: NovoFreteProps) {
       regiao: regiaoPrincipal,
       toneladas: totalToneladas,
       numEntregas: totalEntregas,
-      valorTonelada: calculo.valorTonelada,
-      valorEntregas: calculo.valorEntregas,
-      valorExtraEntregas: calculo.valorExtraEntregas,
-      valorTotal: calculo.valorTotal,
+      valorTonelada: ehCombinado ? 0 : calculo.valorTonelada,
+      valorEntregas: ehCombinado ? 0 : calculo.valorEntregas,
+      valorExtraEntregas: ehCombinado ? 0 : calculo.valorExtraEntregas,
+      valorTotal: totalFinal,
       observacoes,
       status: "pendente",
       entregas: entregas.filter((e) => e.endereco.trim()).map((e) => ({
@@ -262,21 +281,53 @@ export default function NovoFrete({ onSaved, sessao }: NovoFreteProps) {
 
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 space-y-4">
         <h2 className="font-semibold text-lg border-b pb-2">💰 Cálculo do Frete</h2>
-        <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600">
-          Informe <strong>município, número de entregas e toneladas dentro de cada rota</strong> abaixo. O total do frete é somado automaticamente.
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Frete *</label>
+          <select value={tipoFrete} onChange={(e) => setTipoFrete(e.target.value as "padrao" | "combinado")} className="w-full border border-slate-300 rounded-lg px-3 py-2 font-medium">
+            <option value="padrao">📊 Padrão — cálculo automático pelas tarifas dos municípios</option>
+            <option value="combinado">🤝 Combinado — valor negociado (ex.: Brasília, Anápolis, Mato Grosso)</option>
+          </select>
         </div>
 
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 space-y-2">
-          <h3 className="font-semibold text-blue-900 mb-3">💡 Detalhamento do Valor</h3>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            <span className="text-slate-600">Valor por tonelada (R$ {cfg.tarifas.valorTonelada.toFixed(2)} × {totalToneladas.toFixed(2)}t):</span><span className="font-medium text-right">R$ {calculo.valorTonelada.toFixed(2)}</span>
-            <span className="text-slate-600">Total informado ({totalEntregas} entrega(s) em {entregas.filter((e) => e.endereco.trim()).length} rota(s)):</span><span className="font-medium text-right">{totalEntregas} entrega(s)</span>
-            <span className="text-slate-600">Soma das entregas (por município, com limite de {cfg.tarifas.limiteEntregas}):</span><span className="font-medium text-right">R$ {calculo.valorEntregas.toFixed(2)}</span>
-            {calculo.valorExtraEntregas > 0 && (<><span className="text-slate-600">Entregas extras (acima de {cfg.tarifas.limiteEntregas} - R$ {cfg.tarifas.valorExtraApos7Entregas.toFixed(2)} cada):</span><span className="font-medium text-right">R$ {calculo.valorExtraEntregas.toFixed(2)}</span></>)}
-            <div className="col-span-2 border-t border-blue-200 my-2" />
-            <span className="font-bold text-blue-900 text-base">TOTAL DO FRETE:</span><span className="font-bold text-blue-900 text-lg text-right">R$ {calculo.valorTotal.toFixed(2)}</span>
+        {ehCombinado ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+            <h3 className="font-semibold text-amber-900">🤝 Valor Combinado</h3>
+            <p className="text-sm text-amber-800">Este frete não usa o cálculo automático. Digite abaixo o valor total que foi combinado/negociado.</p>
+            <div>
+              <label className="block text-sm font-medium text-amber-900 mb-1">Valor total combinado (R$) *</label>
+              <input type="number" min="0" step="0.01" value={valorCombinado} onChange={(e) => setValorCombinado(e.target.value)} placeholder="0,00" className="w-full border border-amber-300 rounded-lg px-3 py-2 text-lg font-bold bg-white" />
+            </div>
+            <div className="flex justify-between items-center border-t border-amber-200 pt-3">
+              <span className="font-bold text-amber-900 text-base">TOTAL DO FRETE:</span>
+              <span className="font-bold text-amber-900 text-lg">R$ {valorCombinadoNum.toFixed(2)}</span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600">
+              Informe <strong>município, número de entregas e toneladas dentro de cada rota</strong> abaixo. O total é somado automaticamente, com limite e valor extra próprios de cada município.
+            </div>
+
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 space-y-2">
+              <h3 className="font-semibold text-blue-900 mb-3">💡 Detalhamento do Valor</h3>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <span className="text-slate-600">Valor por tonelada (R$ {cfg.tarifas.valorTonelada.toFixed(2)} × {totalToneladas.toFixed(2)}t):</span><span className="font-medium text-right">R$ {calculo.valorTonelada.toFixed(2)}</span>
+                <span className="text-slate-600">Total informado ({totalEntregas} entrega(s) em {entregas.filter((e) => e.endereco.trim()).length} rota(s)):</span><span className="font-medium text-right">{totalEntregas} entrega(s)</span>
+                <span className="text-slate-600">Soma das entregas (por município, com limite individual):</span><span className="font-medium text-right">R$ {calculo.valorEntregas.toFixed(2)}</span>
+                {calculo.valorExtraEntregas > 0 && (<><span className="text-slate-600">Entregas extras (acima do limite de cada município):</span><span className="font-medium text-right">R$ {calculo.valorExtraEntregas.toFixed(2)}</span></>)}
+                <div className="col-span-2 border-t border-blue-200 my-2" />
+                <span className="font-bold text-blue-900 text-base">TOTAL DO FRETE:</span><span className="font-bold text-blue-900 text-lg text-right">R$ {totalFinal.toFixed(2)}</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {municipioPrincipal?.combinado && !ehCombinado && (
+          <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
+            💡 O município <strong>{municipioPrincipal.label}</strong> costuma ter valor <strong>combinado</strong>. Se o valor foi negociado, mude o Tipo de Frete para "Combinado" acima.
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 space-y-4">
@@ -298,7 +349,7 @@ export default function NovoFrete({ onSaved, sessao }: NovoFreteProps) {
               <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                 <div className="md:col-span-3"><label className="block text-xs font-medium text-slate-600 mb-1">Endereço *</label><input value={e.endereco} onChange={(ev) => updateEntrega(i, "endereco", ev.target.value)} placeholder="Rua, número e complemento" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
                 <div className="md:col-span-2"><label className="block text-xs font-medium text-slate-600 mb-1">Bairro</label><input value={e.bairro} onChange={(ev) => updateEntrega(i, "bairro", ev.target.value)} placeholder="Bairro" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
-                <div><label className="block text-xs font-medium text-slate-600 mb-1">Município *</label><select value={e.regiao || "goiania"} onChange={(ev) => updateEntrega(i, "regiao", ev.target.value)} className="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm bg-white font-medium text-blue-900">{regioes.map((r) => (<option key={r.value} value={r.value}>{r.label.replace(" (capital)", "")}</option>))}</select></div>
+                <div><label className="block text-xs font-medium text-slate-600 mb-1">Município *</label><select value={e.regiao || "goiania"} onChange={(ev) => updateEntrega(i, "regiao", ev.target.value)} className="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm bg-white font-medium text-blue-900">{municipios.map((m) => (<option key={m.value} value={m.value}>{m.label.replace(" (capital)", "")}{m.combinado ? " — combinado" : ""}</option>))}</select></div>
                 <div><label className="block text-xs font-medium text-slate-600 mb-1">Nº entregas *</label><input type="number" min="1" value={e.numEntregas} onChange={(ev) => updateEntrega(i, "numEntregas", ev.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
                 <div><label className="block text-xs font-medium text-slate-600 mb-1">Toneladas *</label><input type="number" min="0" step="0.01" value={e.toneladas} onChange={(ev) => updateEntrega(i, "toneladas", ev.target.value)} placeholder="0,00" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
                 <div><label className="block text-xs font-medium text-slate-600 mb-1">Distância (km)</label><input type="number" step="0.1" value={e.distanciaKm} onChange={(ev) => updateEntrega(i, "distanciaKm", parseFloat(ev.target.value) || 0)} placeholder="Opcional" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" /></div>
