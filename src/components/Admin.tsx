@@ -268,79 +268,136 @@ export default function Admin() {
 // Extensões > Apps Script
 
 function doGet(e) {
-  const action = e.parameter.action;
-  if (action === 'get') {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const props = PropertiesService.getScriptProperties();
+  var action = e.parameter.action;
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  
+  if (action === "get") {
+    var data = {};
     
-    // Tenta ler config da Property, se não houver, tenta ler da aba Configuracoes
-    let configObj = {};
-    const configProp = props.getProperty('config');
-    if (configProp) {
-      try { configObj = JSON.parse(configProp); } catch(err) {}
-    } else {
-      const configSheet = ss.getSheetByName('Configuracoes');
-      if (configSheet) {
-        const values = configSheet.getDataRange().getValues();
-        if (values.length > 1 && values[1][0]) {
-          try { configObj = JSON.parse(values[1][0]); } catch(err) {}
+    // Buscar Fretes
+    var sheetFretes = sheet.getSheetByName("Fretes");
+    if (sheetFretes) {
+      data.fretes = getRowsData(sheetFretes);
+    }
+    
+    // Buscar Motoristas
+    var sheetMotoristas = sheet.getSheetByName("Motoristas");
+    if (sheetMotoristas) {
+      data.motoristas = getRowsData(sheetMotoristas);
+    }
+    
+    // Buscar Entregas
+    var sheetEntregas = sheet.getSheetByName("Entregas");
+    if (sheetEntregas) {
+      data.entregas = getRowsData(sheetEntregas);
+    }
+    
+    // Buscar Configuracoes
+    var sheetConfig = sheet.getSheetByName("Configuracoes");
+    if (sheetConfig) {
+      var rows = sheetConfig.getDataRange().getValues();
+      if (rows.length > 1 && rows[1][0]) {
+        try {
+          data.config = JSON.parse(rows[1][0]);
+        } catch(err) {
+          data.config = {};
         }
       }
     }
     
-    const data = {
-      fretes: JSON.parse(props.getProperty('fretes') || '[]'),
-      motoristas: JSON.parse(props.getProperty('motoristas') || '[]'),
-      entregas: JSON.parse(props.getProperty('entregas') || '[]'),
-      config: configObj
-    };
-    
-    return ContentService.createTextOutput(JSON.stringify({ok:true, data:data}))
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", data: data }))
       .setMimeType(ContentService.MimeType.JSON);
   }
-  return ContentService.createTextOutput(JSON.stringify({ok:false}))
-    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
-  try {
-    const body = JSON.parse(e.postData.contents);
-    const props = PropertiesService.getScriptProperties();
-    
-    if (body.data) {
-      if (body.data.fretes) props.setProperty('fretes', JSON.stringify(body.data.fretes));
-      if (body.data.motoristas) props.setProperty('motoristas', JSON.stringify(body.data.motoristas));
-      if (body.data.entregas) props.setProperty('entregas', JSON.stringify(body.data.entregas));
-      if (body.data.config) props.setProperty('config', JSON.stringify(body.data.config));
-      
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      
-      // Salva Configurações na aba Configuracoes
-      if (body.data.config) {
-        let configSheet = ss.getSheetByName('Configuracoes');
-        if (!configSheet) configSheet = ss.insertSheet('Configuracoes');
-        configSheet.clear();
-        configSheet.appendRow(['JSON_DATA']);
-        configSheet.appendRow([JSON.stringify(body.data.config)]);
-      }
-      
-      let sheet = ss.getSheetByName('Fretes');
-      if (!sheet) sheet = ss.insertSheet('Fretes');
-      sheet.clear();
-      if (body.data.fretes && body.data.fretes.length > 0) {
-        const headers = ['id','oc','motoristaNome','placa','cliente','regiao','toneladas','numEntregas','valorTotal','status','dataCarregamento'];
-        sheet.appendRow(headers);
-        body.data.fretes.forEach(f => {
-          sheet.appendRow([f.id, f.oc, f.motoristaNome, f.placa, f.cliente, f.regiao, f.toneladas, f.numEntregas, f.valorTotal, f.status, f.dataCarregamento]);
-        });
-      }
+  var postData = JSON.parse(e.postData.contents);
+  var action = postData.action;
+  var data = postData.data;
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  
+  if (action === "save") {
+    // Salvar Fretes
+    if (data.fretes) {
+      saveRowsData(sheet, "Fretes", data.fretes);
     }
     
-    return ContentService.createTextOutput(JSON.stringify({ok:true}))
+    // Salvar Motoristas
+    if (data.motoristas) {
+      saveRowsData(sheet, "Motoristas", data.motoristas);
+    }
+    
+    // Salvar Entregas
+    if (data.entregas) {
+      saveRowsData(sheet, "Entregas", data.entregas);
+    }
+    
+    // Salvar Configuracoes
+    if (data.config) {
+      var sheetConfig = sheet.getSheetByName("Configuracoes");
+      if (!sheetConfig) {
+        sheetConfig = sheet.insertSheet("Configuracoes");
+      } else {
+        sheetConfig.clear();
+      }
+      sheetConfig.appendRow(["JSON_DATA"]);
+      sheetConfig.appendRow([JSON.stringify(data.config)]);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
       .setMimeType(ContentService.MimeType.JSON);
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ok:false, error: err.toString()}))
-      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// Helper para ler dados da planilha e converter em Array de Objetos
+function getRowsData(sheet) {
+  var rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) return [];
+  
+  var headers = rows[0];
+  var data = [];
+  
+  for (var i = 1; i < rows.length; i++) {
+    var obj = {};
+    for (var j = 0; j < headers.length; j++) {
+      obj[headers[j]] = rows[i][j];
+    }
+    data.push(obj);
+  }
+  return data;
+}
+
+// Helper para salvar dados na planilha
+function saveRowsData(ss, sheetName, dataList) {
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+  } else {
+    sheet.clear();
+  }
+  
+  if (dataList.length === 0) return;
+  
+  // Pegar cabeçalhos de todas as chaves únicas nos objetos
+  var headers = [];
+  dataList.forEach(function(item) {
+    Object.keys(item).forEach(function(key) {
+      if (headers.indexOf(key) === -1 && typeof item[key] !== 'object') {
+        headers.push(key);
+      }
+    });
+  });
+  
+  sheet.appendRow(headers);
+  
+  var values = dataList.map(function(item) {
+    return headers.map(function(h) {
+      return item[h] || "";
+    });
+  });
+  
+  if (values.length > 0) {
+    sheet.getRange(2, 1, values.length, headers.length).setValues(values);
   }
 }
 `}</pre>
