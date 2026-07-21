@@ -35,7 +35,7 @@ export default function Sidebar({ activeTab, onChangeTab, userRole, userName, on
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
             <span>🚚</span>
-            <span>FreteControl</span>
+            <span>CargasRD</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">Grande Goiânia</p>
         </div>
