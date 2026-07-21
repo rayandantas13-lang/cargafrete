@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { Frete } from "@/lib/store";
-import { getFretesVisiveis, deleteFrete, type SessaoAcesso } from "@/lib/store";
-import { regioes } from "@/lib/config";
+import { getFretesVisiveis, deleteFrete, getConfig, type SessaoAcesso } from "@/lib/store";
+import { getMunicipios, getMunicipioLabel } from "@/lib/config";
 
 interface ListaFretesProps {
   refreshKey: number;
@@ -41,7 +41,7 @@ export default function ListaFretes({ refreshKey, onOpenDetail, onDeleted, sessa
     return matches && matchesRegiao && matchesStatus;
   });
 
-  const regiaoLabel = (value: string) => regioes.find((r) => r.value === value)?.label || value;
+  const regiaoLabel = (value: string) => getMunicipioLabel(getConfig(), value);
 
   return (
     <div className="space-y-6">
@@ -54,7 +54,7 @@ export default function ListaFretes({ refreshKey, onOpenDetail, onDeleted, sessa
         <input value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="🔍 Buscar por OC, motorista, placa..." className="flex-1 min-w-[200px] border border-slate-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto" />
         <select value={filtroRegiao} onChange={(e) => setFiltroRegiao(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto">
           <option value="">Todas as regiões</option>
-          {regioes.map((r) => (
+          {getMunicipios(getConfig()).map((r) => (
             <option key={r.value} value={r.value}>{r.label}</option>
           ))}
         </select>
@@ -79,6 +79,7 @@ export default function ListaFretes({ refreshKey, onOpenDetail, onDeleted, sessa
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div>
                 <span className="font-bold text-slate-950 text-base">OC {f.oc}</span>
+                {f.tipoFrete === "combinado" && <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 align-middle">🤝 combinado</span>}
                 <span className="text-xs text-slate-400 block mt-0.5">{f.dataCarregamento || "Sem data"}</span>
               </div>
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
@@ -163,7 +164,10 @@ export default function ListaFretes({ refreshKey, onOpenDetail, onDeleted, sessa
               )}
               {fretesFiltrados.map((f) => (
                 <tr key={f.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium">{f.oc}</td>
+                  <td className="px-4 py-3 font-medium">
+                    {f.oc}
+                    {f.tipoFrete === "combinado" && <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 align-middle">🤝 combinado</span>}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{f.dataCarregamento || "-"}</td>
                   <td className="px-4 py-3">{f.motoristaNome || "-"}</td>
                   <td className="px-4 py-3 font-mono text-xs">{f.placa || "-"}</td>

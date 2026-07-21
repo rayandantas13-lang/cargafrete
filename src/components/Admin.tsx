@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { AppConfig } from "@/lib/config";
+import type { AppConfig, Municipio } from "@/lib/config";
 import { defaultConfig } from "@/lib/config";
 import { getConfig, saveConfig, exportAllData, importData, clearAllData, syncFromSheets, syncToSheets } from "@/lib/store";
 
@@ -103,6 +103,33 @@ export default function Admin() {
     setMsg("🗑️ Dados apagados");
   };
 
+  // ---- Municípios dinâmicos ----
+  const municipios = cfg.municipios || [];
+
+  const updateMunicipio = (i: number, patch: Partial<Municipio>) => {
+    const novos = [...municipios];
+    novos[i] = { ...novos[i], ...patch };
+    setCfg({ ...cfg, municipios: novos });
+  };
+
+  const addMunicipio = () => {
+    const novo: Municipio = {
+      value: "municipio_" + Date.now().toString(36),
+      label: "Novo Município",
+      valorEntrega: 0,
+      valorExtra: cfg.tarifas.valorExtraApos7Entregas,
+      limiteEntregas: cfg.tarifas.limiteEntregas,
+      distanciaKm: 0,
+      combinado: false,
+    };
+    setCfg({ ...cfg, municipios: [...municipios, novo] });
+  };
+
+  const removeMunicipio = (i: number) => {
+    if (!confirm("Remover este município das configurações?")) return;
+    setCfg({ ...cfg, municipios: municipios.filter((_, idx) => idx !== i) });
+  };
+
   if (autenticado === null) return <div className="flex items-center justify-center min-h-[60vh]"><div className="text-slate-500">Verificando...</div></div>;
 
   if (!autenticado) {
@@ -140,22 +167,46 @@ export default function Admin() {
 
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 space-y-4">
         <h2 className="font-semibold text-lg border-b pb-2">💰 Valores das Tarifas</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div><label className="block text-sm font-medium mb-1">Valor por Tonelada (R$)</label><input type="number" step="0.01" value={cfg.tarifas.valorTonelada} onChange={(e) => setCfg({ ...cfg, tarifas: { ...cfg.tarifas, valorTonelada: parseFloat(e.target.value) || 0 } })} className="w-full border rounded-lg px-3 py-2" /></div>
-          <div><label className="block text-sm font-medium mb-1">Valor extra após {cfg.tarifas.limiteEntregas} entregas</label><input type="number" step="0.01" value={cfg.tarifas.valorExtraApos7Entregas} onChange={(e) => setCfg({ ...cfg, tarifas: { ...cfg.tarifas, valorExtraApos7Entregas: parseFloat(e.target.value) || 0 } })} className="w-full border rounded-lg px-3 py-2" /></div>
-          <div><label className="block text-sm font-medium mb-1">Limite entregas</label><input type="number" value={cfg.tarifas.limiteEntregas} onChange={(e) => setCfg({ ...cfg, tarifas: { ...cfg.tarifas, limiteEntregas: parseInt(e.target.value) || 7 } })} className="w-full border rounded-lg px-3 py-2" /></div>
+          <div><label className="block text-sm font-medium mb-1">Valor extra padrão (novos municípios)</label><input type="number" step="0.01" value={cfg.tarifas.valorExtraApos7Entregas} onChange={(e) => setCfg({ ...cfg, tarifas: { ...cfg.tarifas, valorExtraApos7Entregas: parseFloat(e.target.value) || 0 } })} className="w-full border rounded-lg px-3 py-2" /></div>
+          <div><label className="block text-sm font-medium mb-1">Limite de entregas padrão (novos municípios)</label><input type="number" value={cfg.tarifas.limiteEntregas} onChange={(e) => setCfg({ ...cfg, tarifas: { ...cfg.tarifas, limiteEntregas: parseInt(e.target.value) || 7 } })} className="w-full border rounded-lg px-3 py-2" /></div>
         </div>
-        <h3 className="font-medium mt-4">Valor por Entrega por Região</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[
-            { key: "valorEntregaGoiania", label: "Goiânia" },
-            { key: "valorEntregaTrindade", label: "Trindade" },
-            { key: "valorEntregaSenadorCanedo", label: "Senador Canedo" },
-            { key: "valorEntregaGoianira", label: "Goianira" },
-            { key: "valorEntregaAbadia", label: "Abadia" },
-          ].map(({ key, label }) => (
-            <div key={key}><label className="block text-sm font-medium mb-1">{label}</label><input type="number" step="0.01" value={(cfg.tarifas as any)[key]} onChange={(e) => setCfg({ ...cfg, tarifas: { ...cfg.tarifas, [key]: parseFloat(e.target.value) || 0 } })} className="w-full border rounded-lg px-3 py-2" /></div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 border-t pt-4">
+          <div>
+            <h3 className="font-medium">📍 Municípios e Tarifas por Entrega</h3>
+            <p className="text-xs text-slate-500 mt-1">Cada município tem seu valor por entrega, seu limite (X) e seu valor extra acima de X. Marque <strong>Combinado</strong> para destinos de valor negociado (sem cálculo automático).</p>
+          </div>
+          <button onClick={addMunicipio} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium w-full sm:w-auto text-center transition whitespace-nowrap">+ Adicionar município</button>
+        </div>
+
+        <div className="space-y-3">
+          {municipios.map((m, i) => (
+            <div key={m.value} className={`border rounded-lg p-4 space-y-3 ${m.combinado ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <input value={m.label} onChange={(e) => updateMunicipio(i, { label: e.target.value })} placeholder="Nome do município" className="flex-1 border border-slate-300 rounded-lg px-3 py-2 font-medium bg-white" />
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 text-sm font-medium whitespace-nowrap cursor-pointer">
+                    <input type="checkbox" checked={m.combinado} onChange={(e) => updateMunicipio(i, { combinado: e.target.checked })} className="w-4 h-4" />
+                    🤝 Combinado
+                  </label>
+                  <button onClick={() => removeMunicipio(i)} className="text-red-600 hover:text-red-800 text-sm whitespace-nowrap">Remover</button>
+                </div>
+              </div>
+              {m.combinado ? (
+                <p className="text-xs text-amber-700">Destino de valor combinado: o valor do frete será digitado manualmente no cadastro do frete (não há cálculo automático de entregas).</p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div><label className="block text-xs font-medium text-slate-600 mb-1">Valor por entrega (R$)</label><input type="number" step="0.01" value={m.valorEntrega} onChange={(e) => updateMunicipio(i, { valorEntrega: parseFloat(e.target.value) || 0 })} className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white" /></div>
+                  <div><label className="block text-xs font-medium text-slate-600 mb-1">Limite de entregas (X)</label><input type="number" value={m.limiteEntregas} onChange={(e) => updateMunicipio(i, { limiteEntregas: parseInt(e.target.value) || 0 })} className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white" /></div>
+                  <div><label className="block text-xs font-medium text-slate-600 mb-1">Valor extra acima de X (R$)</label><input type="number" step="0.01" value={m.valorExtra} onChange={(e) => updateMunicipio(i, { valorExtra: parseFloat(e.target.value) || 0 })} className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white" /></div>
+                  <div><label className="block text-xs font-medium text-slate-600 mb-1">Distância (km)</label><input type="number" step="0.1" value={m.distanciaKm} onChange={(e) => updateMunicipio(i, { distanciaKm: parseFloat(e.target.value) || 0 })} className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white" /></div>
+                </div>
+              )}
+            </div>
           ))}
+          {municipios.length === 0 && <p className="text-sm text-slate-400">Nenhum município cadastrado. Clique em "Adicionar município".</p>}
         </div>
       </div>
 

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { Frete, Entrega, Anexo } from "@/lib/store";
-import { getFreteById, updateFreteStatus, updateEntregasOrdenacao, toggleEntregaConcluida, deleteAnexo } from "@/lib/store";
-import { regioes } from "@/lib/config";
+import { getFreteById, updateFreteStatus, updateEntregasOrdenacao, toggleEntregaConcluida, deleteAnexo, getConfig } from "@/lib/store";
+import { getMunicipioLabel } from "@/lib/config";
 
 interface DetalhesFreteProps {
   freteId: string;
@@ -64,7 +64,8 @@ export default function DetalhesFrete({ freteId, onBack, onSaved }: DetalhesFret
 
   if (!frete) return <div>Frete não encontrado</div>;
 
-  const regiaoLabel = regioes.find((r) => r.value === frete.regiao)?.label || frete.regiao;
+  const regiaoLabel = getMunicipioLabel(getConfig(), frete.regiao);
+  const ehCombinado = frete.tipoFrete === "combinado";
 
   return (
     <div className="space-y-6">
@@ -93,6 +94,7 @@ export default function DetalhesFrete({ freteId, onBack, onSaved }: DetalhesFret
               <div><p className="text-slate-500">Motorista</p><p className="font-medium">{frete.motoristaNome || "-"}</p></div>
               <div><p className="text-slate-500">Placa</p><p className="font-mono">{frete.placa || "-"}</p></div>
               <div><p className="text-slate-500">Região</p><p className="font-medium">{regiaoLabel}</p></div>
+              <div><p className="text-slate-500">Tipo de Frete</p><p className="font-medium">{ehCombinado ? "🤝 Combinado" : "📊 Padrão"}</p></div>
               <div><p className="text-slate-500">Data Carregamento</p><p className="font-medium">{frete.dataCarregamento || "-"}</p></div>
               <div><p className="text-slate-500">Data Entrega</p><p className="font-medium">{frete.dataEntrega || "-"}</p></div>
               <div><p className="text-slate-500">Toneladas</p><p className="font-medium">{frete.toneladas}t</p></div>
@@ -125,12 +127,20 @@ export default function DetalhesFrete({ freteId, onBack, onSaved }: DetalhesFret
         <div className="space-y-6">
           <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl shadow-sm p-6">
             <h2 className="font-semibold mb-3 opacity-90">Valor do Frete</h2>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="opacity-80">Toneladas</span><span>R$ {(frete.valorTonelada || 0).toFixed(2)}</span></div>
-              <div className="flex justify-between"><span className="opacity-80">Entregas</span><span>R$ {(frete.valorEntregas || 0).toFixed(2)}</span></div>
-              {(frete.valorExtraEntregas || 0) > 0 && (<div className="flex justify-between"><span className="opacity-80">Extras</span><span>R$ {(frete.valorExtraEntregas || 0).toFixed(2)}</span></div>)}
-              <div className="border-t border-white/30 pt-2 mt-2 flex justify-between text-lg font-bold"><span>TOTAL</span><span>R$ {(frete.valorTotal || 0).toFixed(2)}</span></div>
-            </div>
+            {ehCombinado ? (
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between"><span className="opacity-80">🤝 Valor combinado</span><span>R$ {(frete.valorCombinado ?? frete.valorTotal ?? 0).toFixed(2)}</span></div>
+                <p className="opacity-70 text-xs">Valor negociado manualmente (sem cálculo automático).</p>
+                <div className="border-t border-white/30 pt-2 mt-2 flex justify-between text-lg font-bold"><span>TOTAL</span><span>R$ {(frete.valorTotal || 0).toFixed(2)}</span></div>
+              </div>
+            ) : (
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between"><span className="opacity-80">Toneladas</span><span>R$ {(frete.valorTonelada || 0).toFixed(2)}</span></div>
+                <div className="flex justify-between"><span className="opacity-80">Entregas</span><span>R$ {(frete.valorEntregas || 0).toFixed(2)}</span></div>
+                {(frete.valorExtraEntregas || 0) > 0 && (<div className="flex justify-between"><span className="opacity-80">Extras</span><span>R$ {(frete.valorExtraEntregas || 0).toFixed(2)}</span></div>)}
+                <div className="border-t border-white/30 pt-2 mt-2 flex justify-between text-lg font-bold"><span>TOTAL</span><span>R$ {(frete.valorTotal || 0).toFixed(2)}</span></div>
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200">

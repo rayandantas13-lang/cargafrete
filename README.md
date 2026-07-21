@@ -5,14 +5,15 @@ Sistema de controle de frete e cargas da Grande Goiânia. **100% no GitHub Pages
 ## ✨ Funcionalidades
 
 - **📊 Dashboard** - visão geral por região
-- **➕ Novo Frete** - OC, motorista, placa, toneladas, cálculo automático por região (Goiânia mais barato, Trindade, Senador Canedo, Goianira, Abadia)
-  - Valor muda após 7 entregas
+- **➕ Novo Frete** - OC, motorista, placa, toneladas e dois **tipos de frete**:
+  - **📊 Padrão**: cálculo automático pelas tarifas de cada município (cada cidade com seu valor por entrega, seu limite X e seu valor extra acima de X)
+  - **🤝 Combinado**: valor negociado digitado manualmente (destinos longe como Brasília, Anápolis, Mato Grosso)
   - Locais de entrega opcionais com distância, ordenação do mais perto para o mais longe
   - Anexos PDF/fotos da OC
 - **🚛 Fretes** - lista, filtros, editar status
 - **🗺️ Rotas** - gera rota otimizada e abre no Google Maps (motorista pode mudar ordem)
 - **👤 Motoristas** - cadastro simples
-- **⚙️ Admin** - senha protegida, configura valores e Google Sheets
+- **⚙️ Admin** - senha protegida, configura valores, Google Sheets e **gerencia municípios** (adicionar/remover cidades, valor por entrega, limite X e valor extra de cada uma, e marcar destinos "combinado")
 
 ## 🗄️ Banco de Dados: Google Sheets
 
@@ -35,19 +36,38 @@ Deixa vazio. Dados ficam só no navegador. Use Exportar/Importar JSON.
 ### 🔧 Pré-configurar via Variáveis de Ambiente (recomendado para vários dispositivos)
 
 Para não precisar digitar a URL do Apps Script e o ID da planilha em **cada aparelho**
-(celular, tablet, computador de funcionário), você pode embutir esses valores no build
-usando variáveis de ambiente públicas do Next.js:
+(celular, tablet, computador de funcionário), esses valores podem ser embutidos no build
+usando variáveis de ambiente públicas do Next.js (`NEXT_PUBLIC_...`). Como são compiladas
+no build, **qualquer dispositivo** que abrir o site já carrega a conexão automaticamente.
+Se um campo for preenchido manualmente no Admin, ele tem prioridade sobre a variável.
+
+**No GitHub Pages (deploy deste projeto):** o build roda no GitHub Actions, então:
+
+1. No repositório: **Settings → Secrets and variables → Actions → Variables**
+2. Clique em **New repository variable** e crie:
+   - `NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY` = URL do Apps Script (termina em `/exec`)
+   - `NEXT_PUBLIC_SPREADSHEET_ID` = ID da planilha
+3. Garanta que o passo de build do `.github/workflows/deploy.yml` repassa essas
+   variáveis (bloco `env:` abaixo). Se ainda não estiver, adicione:
+
+   ```yaml
+         - name: 🏗️ Build estático para GitHub Pages
+           run: npm run build
+           env:
+             GITHUB_PAGES: "true"
+             NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY: ${{ vars.NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY }}
+             NEXT_PUBLIC_SPREADSHEET_ID: ${{ vars.NEXT_PUBLIC_SPREADSHEET_ID }}
+   ```
+
+4. Faça um novo push (ou rode o workflow manualmente) — o site publicado já sai
+   configurado em qualquer dispositivo.
+
+**Rodando local:** copie [`.env.example`](.env.example) para `.env.local` e preencha:
 
 ```env
-# .env.local (não versionado) — ou cadastre no provedor de hospedagem (Vercel/Netlify)
 NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY="https://script.google.com/macros/s/SUA_URL/exec"
 NEXT_PUBLIC_SPREADSHEET_ID="SEU_SPREADSHEET_ID"
 ```
-
-Como começam com `NEXT_PUBLIC_`, elas são compiladas no build. Depois disso, **qualquer
-dispositivo** que abrir o site já carrega a conexão com a planilha automaticamente. Se um
-campo for preenchido manualmente no Admin, ele tem prioridade sobre a variável de ambiente.
-Veja o arquivo [`.env.example`](.env.example) na raiz do projeto.
 
 ## 🚀 Deploy no GitHub (100%)
 

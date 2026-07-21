@@ -50,6 +50,10 @@ export interface Anexo {
 export interface Frete {
   id: string;
   oc: string;
+  /** Tipo do frete: "padrao" (cálculo automático) ou "combinado" (valor negociado). */
+  tipoFrete?: "padrao" | "combinado";
+  /** Valor total negociado manualmente quando tipoFrete === "combinado". */
+  valorCombinado?: number;
   motoristaId?: string | null;
   motoristaNome?: string | null;
   placa?: string | null;
@@ -224,6 +228,8 @@ export function getFreteById(id: string): (Frete & { entregas: Entrega[]; anexos
 export function saveFrete(data: {
   id?: string;
   oc: string;
+  tipoFrete?: "padrao" | "combinado";
+  valorCombinado?: number;
   motoristaId?: string | null;
   motoristaNome?: string | null;
   placa?: string | null;
@@ -251,6 +257,8 @@ export function saveFrete(data: {
       frete = {
         ...fretes[idx],
         oc: data.oc,
+        tipoFrete: data.tipoFrete || "padrao",
+        valorCombinado: data.valorCombinado,
         motoristaId: data.motoristaId ?? null,
         motoristaNome: data.motoristaNome ?? null,
         placa: data.placa ?? null,
@@ -274,6 +282,8 @@ export function saveFrete(data: {
       frete = {
         id: data.id,
         oc: data.oc,
+        tipoFrete: data.tipoFrete || "padrao",
+        valorCombinado: data.valorCombinado,
         motoristaId: data.motoristaId ?? null,
         motoristaNome: data.motoristaNome ?? null,
         placa: data.placa ?? null,
@@ -298,6 +308,8 @@ export function saveFrete(data: {
     frete = {
       id: uid(),
       oc: data.oc,
+      tipoFrete: data.tipoFrete || "padrao",
+      valorCombinado: data.valorCombinado,
       motoristaId: data.motoristaId ?? null,
       motoristaNome: data.motoristaNome ?? null,
       placa: data.placa ?? null,
