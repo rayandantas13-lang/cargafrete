@@ -2,29 +2,30 @@
 
 import { useEffect, useState } from "react";
 import type { Frete } from "@/lib/store";
-import { getFretes, deleteFrete } from "@/lib/store";
+import { getFretesVisiveis, deleteFrete, type SessaoAcesso } from "@/lib/store";
 import { regioes } from "@/lib/config";
 
 interface ListaFretesProps {
   refreshKey: number;
   onOpenDetail: (id: string) => void;
   onDeleted: () => void;
+  sessao: SessaoAcesso;
 }
 
-export default function ListaFretes({ refreshKey, onOpenDetail, onDeleted }: ListaFretesProps) {
+export default function ListaFretes({ refreshKey, onOpenDetail, onDeleted, sessao }: ListaFretesProps) {
   const [fretes, setFretes] = useState<Frete[]>([]);
   const [filtro, setFiltro] = useState("");
   const [filtroRegiao, setFiltroRegiao] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
 
   useEffect(() => {
-    setFretes(getFretes());
+    setFretes(getFretesVisiveis(sessao));
   }, [refreshKey]);
 
   const deletar = (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este frete?")) return;
     deleteFrete(id);
-    setFretes(getFretes());
+    setFretes(getFretesVisiveis(sessao));
     onDeleted();
   };
 

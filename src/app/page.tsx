@@ -10,6 +10,7 @@ import Rotas from "@/components/Rotas";
 import Motoristas from "@/components/Motoristas";
 import Admin from "@/components/Admin";
 import Login from "@/components/Login";
+import type { SessaoAcesso } from "@/lib/store";
 
 export type TabKey =
   | "dashboard"
@@ -20,9 +21,7 @@ export type TabKey =
   | "motoristas"
   | "admin";
 
-interface UserSession {
-  role: "admin" | "motorista";
-  id?: string;
+interface UserSession extends SessaoAcesso {
   nome: string;
 }
 
@@ -54,7 +53,7 @@ export default function Home() {
     if (!session) return;
     const hash = window.location.hash.replace("#", "") as TabKey;
     if (hash && ["dashboard", "novo", "fretes", "rotas", "motoristas", "admin"].includes(hash)) {
-      if (session.role === "motorista" && ["novo", "motoristas", "admin"].includes(hash)) {
+      if (session.role !== "admin" && ["novo", "motoristas", "admin"].includes(hash)) {
         setTab("dashboard");
       } else {
         setTab(hash);
@@ -63,7 +62,7 @@ export default function Home() {
     const handler = () => {
       const h = window.location.hash.replace("#", "") as TabKey;
       if (h) {
-        if (session.role === "motorista" && ["novo", "motoristas", "admin"].includes(h)) {
+        if (session.role !== "admin" && ["novo", "motoristas", "admin"].includes(h)) {
           setTab("dashboard");
         } else {
           setTab(h);
@@ -88,7 +87,7 @@ export default function Home() {
   };
 
   const mudarTab = (novaTab: TabKey) => {
-    if (session?.role === "motorista" && ["novo", "motoristas", "admin"].includes(novaTab)) {
+    if (session?.role !== "admin" && ["novo", "motoristas", "admin"].includes(novaTab)) {
       alert("Acesso restrito a administradores.");
       return;
     }
@@ -129,7 +128,7 @@ export default function Home() {
       />
       <main className="flex-1 ml-64 p-8">
         {tab === "dashboard" && (
-          <Dashboard onNavigate={mudarTab} refreshKey={freteRefresh} />
+          <Dashboard onNavigate={mudarTab} refreshKey={freteRefresh} sessao={session} />
         )}
         {tab === "novo" && session.role === "admin" && (
           <NovoFrete
@@ -144,6 +143,7 @@ export default function Home() {
             refreshKey={freteRefresh}
             onOpenDetail={abrirDetalhe}
             onDeleted={atualizarFretes}
+            sessao={session}
           />
         )}
         {tab === "detalhe" && freteIdSelecionado && (
@@ -153,7 +153,7 @@ export default function Home() {
             onSaved={atualizarFretes}
           />
         )}
-        {tab === "rotas" && <Rotas refreshKey={freteRefresh} />}
+        {tab === "rotas" && <Rotas refreshKey={freteRefresh} sessao={session} />}
         {tab === "motoristas" && session.role === "admin" && <Motoristas />}
         {tab === "admin" && session.role === "admin" && <Admin />}
       </main>

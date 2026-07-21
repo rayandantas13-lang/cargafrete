@@ -2,9 +2,14 @@
 import { defaultConfig, type AppConfig } from "./config";
 
 // Tipos
+export type TipoCadastro = "proprietario" | "funcionario";
+
 export interface Motorista {
   id: string;
   nome: string;
+  tipo: TipoCadastro;
+  /** Preenchido quando o cadastro é de um funcionário. */
+  proprietarioId?: string | null;
   placa: string;
   cnh?: string;
   telefone?: string;
@@ -117,7 +122,12 @@ export function saveConfig(cfg: AppConfig) {
 
 // Motoristas
 export function getMotoristas(): Motorista[] {
-  return load<Motorista[]>(KEYS.motoristas, []);
+  // Registros antigos eram os donos dos caminhões; mantemos compatibilidade.
+  return load<Motorista[]>(KEYS.motoristas, []).map((m) => ({
+    ...m,
+    tipo: m.tipo || "proprietario",
+    proprietarioId: m.proprietarioId || null,
+  }));
 }
 
 export function saveMotorista(data: Omit<Motorista, "id" | "createdAt"> & { id?: string }): Motorista {
@@ -139,6 +149,8 @@ export function saveMotorista(data: Omit<Motorista, "id" | "createdAt"> & { id?:
   const novo: Motorista = {
     id: uid(),
     nome: data.nome,
+    tipo: data.tipo || "proprietario",
+    proprietarioId: data.tipo === "funcionario" ? data.proprietarioId || null : null,
     placa: data.placa,
     cnh: data.cnh,
     telefone: data.telefone,
@@ -172,10 +184,28 @@ export function deleteMotorista(id: string) {
 }
 
 // Fretes
+export interface SessaoAcesso {
+  role: "admin" | "proprietario" | "motorista";
+  id?: string;
+}
+
 export function getFretes(): Frete[] {
   const fretes = load<Frete[]>(KEYS.fretes, []);
-  // Ordenar por mais recente
   return [...fretes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+/** Admin vê tudo; proprietário vê seus fretes e os de seus funcionários; funcionário só os próprios. */
+export function getFretesVisiveis(sessao: SessaoAcesso): Frete[] {
+  const todos = getFretes();
+  if (sessao.role === "admin" || !sessao.id) return sessao.role === "admin" ? todos : [];
+  const motoristas = getMotoristas();
+  const usuario = motoristas.find((m) => m.id === sessao.id);
+  if (!usuario) return [];
+  if (usuario.tipo === "proprietario") {
+    const ids = new Set(motoristas.filter((m) => m.id === usuario.id || m.proprietarioId === usuario.id).map((m) => m.id));
+    return todos.filter((f) => f.motoristaId && ids.has(f.motoristaId));
+  }
+  return todos.filter((f) => f.motoristaId === usuario.id);
 }
 
 export function getFreteById(id: string): (Frete & { entregas: Entrega[]; anexos: Anexo[] }) | null {

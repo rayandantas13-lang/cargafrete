@@ -3,19 +3,20 @@
 import { useEffect, useState } from "react";
 import type { TabKey } from "@/app/page";
 import type { Frete } from "@/lib/store";
-import { getFretes } from "@/lib/store";
+import { getFretesVisiveis, type SessaoAcesso } from "@/lib/store";
 import { regioes } from "@/lib/config";
 
 interface DashboardProps {
   onNavigate: (tab: TabKey) => void;
   refreshKey: number;
+  sessao: SessaoAcesso;
 }
 
-export default function Dashboard({ onNavigate, refreshKey }: DashboardProps) {
+export default function Dashboard({ onNavigate, refreshKey, sessao }: DashboardProps) {
   const [fretes, setFretes] = useState<Frete[]>([]);
 
   useEffect(() => {
-    setFretes(getFretes());
+    setFretes(getFretesVisiveis(sessao));
   }, [refreshKey]);
 
   const totalFretes = fretes.length;

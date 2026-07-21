@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { getConfig, getMotoristas, updateMotoristaSenha, type Motorista } from "@/lib/store";
+import { getConfig, getMotoristas, updateMotoristaSenha, type Motorista, type TipoCadastro } from "@/lib/store";
 
 interface LoginProps {
-  onLoginSuccess: (user: { role: "admin" | "motorista"; id?: string; nome: string }) => void;
+  onLoginSuccess: (user: { role: "admin" | "proprietario" | "motorista"; id?: string; nome: string }) => void;
 }
 
 export default function Login({ onLoginSuccess }: LoginProps) {
@@ -53,7 +53,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         return;
       }
 
-      onLoginSuccess({ role: "motorista", id: m.id, nome: m.nome });
+      onLoginSuccess({ role: m.tipo === "proprietario" ? "proprietario" : "motorista", id: m.id, nome: m.nome });
     }
   };
 

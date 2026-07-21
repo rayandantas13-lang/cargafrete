@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Motorista } from "@/lib/store";
+import type { Motorista, TipoCadastro } from "@/lib/store";
 import { getMotoristas, saveMotorista, deleteMotorista } from "@/lib/store";
 
 export default function Motoristas() {
@@ -10,20 +10,21 @@ export default function Motoristas() {
   const [showForm, setShowForm] = useState(false);
   const [novoMotoristaCriado, setNovoMotoristaCriado] = useState<Motorista | null>(null);
 
-  const [form, setForm] = useState({ nome: "", placa: "", cnh: "", telefone: "", veiculo: "", observacoes: "" });
+  const [form, setForm] = useState<{ nome: string; placa: string; cnh: string; telefone: string; veiculo: string; observacoes: string; tipo: TipoCadastro; proprietarioId: string }>({ nome: "", placa: "", cnh: "", telefone: "", veiculo: "", observacoes: "", tipo: "proprietario", proprietarioId: "" });
 
   const carregar = () => setMotoristas(getMotoristas());
 
   useEffect(() => { carregar(); }, []);
 
   const resetForm = () => {
-    setForm({ nome: "", placa: "", cnh: "", telefone: "", veiculo: "", observacoes: "" });
+    setForm({ nome: "", placa: "", cnh: "", telefone: "", veiculo: "", observacoes: "", tipo: "proprietario", proprietarioId: "" });
     setEditando(null);
     setShowForm(false);
   };
 
   const salvar = () => {
     if (!form.nome || !form.placa) { alert("Nome e placa são obrigatórios"); return; }
+    if (form.tipo === "funcionario" && !form.proprietarioId) { alert("Selecione o proprietário responsável pelo funcionário"); return; }
     const m = saveMotorista(editando ? { ...form, id: editando.id } : form);
     if (!editando && m.senha) {
       setNovoMotoristaCriado(m);
@@ -34,7 +35,7 @@ export default function Motoristas() {
 
   const editar = (m: Motorista) => {
     setEditando(m);
-    setForm({ nome: m.nome, placa: m.placa, cnh: m.cnh || "", telefone: m.telefone || "", veiculo: m.veiculo || "", observacoes: m.observacoes || "" });
+    setForm({ nome: m.nome, placa: m.placa, cnh: m.cnh || "", telefone: m.telefone || "", veiculo: m.veiculo || "", observacoes: m.observacoes || "", tipo: m.tipo || "proprietario", proprietarioId: m.proprietarioId || "" });
     setShowForm(true);
   };
 
@@ -77,6 +78,22 @@ export default function Motoristas() {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 space-y-4">
           <h2 className="font-semibold text-lg">{editando ? "Editar Motorista" : "Novo Motorista"}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de cadastro *</label>
+              <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value as TipoCadastro, proprietarioId: e.target.value === "proprietario" ? "" : form.proprietarioId })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
+                <option value="proprietario">👑 Proprietário do caminhão</option>
+                <option value="funcionario">👤 Motorista funcionário</option>
+              </select>
+            </div>
+            {form.tipo === "funcionario" && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Proprietário responsável *</label>
+                <select value={form.proprietarioId} onChange={(e) => setForm({ ...form, proprietarioId: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2">
+                  <option value="">Selecione o proprietário</option>
+                  {motoristas.filter((m) => (m.tipo || "proprietario") === "proprietario" && m.id !== editando?.id).map((m) => <option key={m.id} value={m.id}>{m.nome} — {m.placa}</option>)}
+                </select>
+              </div>
+            )}
             <div><label className="block text-sm font-medium text-slate-700 mb-1">Nome *</label><input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="Nome completo" /></div>
             <div><label className="block text-sm font-medium text-slate-700 mb-1">Placa * (Usada como login)</label><input value={form.placa} onChange={(e) => setForm({ ...form, placa: e.target.value.toUpperCase() })} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="ABC-1234" /></div>
             <div><label className="block text-sm font-medium text-slate-700 mb-1">Telefone</label><input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="(62) 99999-9999" /></div>
@@ -97,6 +114,8 @@ export default function Motoristas() {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="text-left px-4 py-3 font-semibold">Nome</th>
+                <th className="text-left px-4 py-3 font-semibold">Tipo</th>
+                <th className="text-left px-4 py-3 font-semibold">Proprietário</th>
                 <th className="text-left px-4 py-3 font-semibold">Placa (Login)</th>
                 <th className="text-left px-4 py-3 font-semibold">Telefone</th>
                 <th className="text-left px-4 py-3 font-semibold">Veículo</th>
@@ -105,10 +124,12 @@ export default function Motoristas() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {motoristas.length === 0 && (<tr><td colSpan={6} className="text-center py-8 text-slate-400">Nenhum motorista cadastrado</td></tr>)}
+              {motoristas.length === 0 && (<tr><td colSpan={8} className="text-center py-8 text-slate-400">Nenhum cadastro encontrado</td></tr>)}
               {motoristas.map((m) => (
                 <tr key={m.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-medium">{m.nome}</td>
+                  <td className="px-4 py-3">{(m.tipo || "proprietario") === "proprietario" ? "👑 Proprietário" : "👤 Funcionário"}</td>
+                  <td className="px-4 py-3">{m.proprietarioId ? motoristas.find((p) => p.id === m.proprietarioId)?.nome || "-" : "Próprio"}</td>
                   <td className="px-4 py-3 font-mono font-bold text-blue-600">{m.placa}</td>
                   <td className="px-4 py-3">{m.telefone || "-"}</td>
                   <td className="px-4 py-3">{m.veiculo || "-"}</td>
