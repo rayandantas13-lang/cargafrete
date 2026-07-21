@@ -125,9 +125,9 @@ export default function Admin() {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-3xl font-bold">⚙️ Administração</h1></div>
-        <button onClick={logout} className="text-slate-600 hover:text-slate-900 text-sm bg-white border border-slate-200 px-4 py-2 rounded-lg">🚪 Sair</button>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div><h1 className="text-2xl sm:text-3xl font-bold">⚙️ Administração</h1></div>
+        <button onClick={logout} className="text-slate-600 hover:text-slate-900 text-sm bg-white border border-slate-200 px-4 py-2.5 rounded-lg w-full sm:w-auto text-center font-medium transition-all">🚪 Sair</button>
       </div>
 
       {msg && <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-lg px-4 py-2 text-sm">{msg}</div>}
@@ -203,12 +203,12 @@ export default function Admin() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <button onClick={handleSyncFromSheets} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">📥 Sincronizar da Planilha</button>
-          <button onClick={handleSyncToSheets} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">📤 Enviar para Planilha</button>
-          <button onClick={exportar} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm">💾 Exportar JSON</button>
-          <label className="bg-slate-100 hover:bg-slate-200 border border-slate-300 px-4 py-2 rounded-lg text-sm cursor-pointer">📂 Importar JSON<input type="file" accept=".json" onChange={handleImport} className="hidden" /></label>
-          <button onClick={handleClear} className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm">🗑️ Limpar dados</button>
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+          <button onClick={handleSyncFromSheets} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium w-full sm:w-auto text-center transition">📥 Sincronizar da Planilha</button>
+          <button onClick={handleSyncToSheets} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium w-full sm:w-auto text-center transition">📤 Enviar para Planilha</button>
+          <button onClick={exportar} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-lg text-sm font-medium w-full sm:w-auto text-center transition">💾 Exportar JSON</button>
+          <label className="bg-slate-100 hover:bg-slate-200 border border-slate-300 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full sm:w-auto text-center block transition">📂 Importar JSON<input type="file" accept=".json" onChange={handleImport} className="hidden" /></label>
+          <button onClick={handleClear} className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2.5 rounded-lg text-sm font-medium w-full sm:w-auto text-center transition">🗑️ Limpar dados</button>
         </div>
 
         <details className="text-sm">
@@ -283,7 +283,7 @@ function doPost(e) {
       </div>
 
       <div className="flex justify-end gap-3 pb-8">
-        <button onClick={salvar} disabled={salvando} className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-lg font-medium shadow-sm">{salvando ? "Salvando..." : "💾 Salvar Configurações"}</button>
+        <button onClick={salvar} disabled={salvando} className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-lg font-medium shadow-sm w-full sm:w-auto text-center">{salvando ? "Salvando..." : "💾 Salvar Configurações"}</button>
       </div>
     </div>
   );

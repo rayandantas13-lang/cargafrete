@@ -87,9 +87,9 @@ export default function Dashboard({ onNavigate, refreshKey, sessao }: DashboardP
         </div>
       </div>
 
-      <div className="flex gap-3">
-        <button onClick={() => onNavigate("novo")} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-sm transition">➕ Registrar Novo Frete</button>
-        <button onClick={() => onNavigate("rotas")} className="bg-white hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-lg font-medium border border-slate-200 transition">🗺️ Ver Rotas</button>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button onClick={() => onNavigate("novo")} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-sm transition w-full sm:w-auto">➕ Registrar Novo Frete</button>
+        <button onClick={() => onNavigate("rotas")} className="bg-white hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-lg font-medium border border-slate-200 transition w-full sm:w-auto">🗺️ Ver Rotas</button>
       </div>
     </div>
   );

@@ -55,17 +55,17 @@ export default function Rotas({ refreshKey, sessao }: RotasProps) {
         <p className="text-slate-500 mt-1">Visualize e abra rotas de entrega no Google Maps</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
-        <div className="flex items-center gap-4 mb-4">
-          <label className="font-medium">Selecione um frete:</label>
-          <select value={freteSelecionado} onChange={(e) => setFreteSelecionado(e.target.value)} className="flex-1 border border-slate-300 rounded-lg px-3 py-2">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-slate-200">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-4">
+          <label className="font-semibold text-slate-700 sm:font-medium whitespace-nowrap">Selecione um frete:</label>
+          <select value={freteSelecionado} onChange={(e) => setFreteSelecionado(e.target.value)} className="w-full sm:flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm">
             <option value="">-- Selecione --</option>
             {fretesComEntrega.map((f) => (
               <option key={f.id} value={f.id}>{f.oc} - {f.motoristaNome || "sem motorista"} ({f.entregas.length} entregas)</option>
             ))}
           </select>
           {frete && (
-            <button onClick={gerarLinkMaps} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium whitespace-nowrap">🗺️ Abrir no Google Maps</button>
+            <button onClick={gerarLinkMaps} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg font-medium w-full sm:w-auto text-center whitespace-nowrap text-sm">🗺️ Abrir no Google Maps</button>
           )}
         </div>
 
